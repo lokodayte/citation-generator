@@ -1,10 +1,16 @@
 # Citation Generator
 
-Paste a URL (or a DOI), pick **MLA 9th edition** or **APA 7th edition**, and get a
-formatted citation you can copy with one click. Italics are kept when you paste it into Word or Google Docs.
+Paste a URL (or a DOI), pick a style, and get a formatted citation you can copy with one
+click. Italics are kept when you paste it into Word or Google Docs.
 
-Editions checked October 2026: MLA Handbook 9th ed. (2021) and APA Publication
-Manual 7th ed. (2019) are still the current editions.
+| Style | Follows |
+|---|---|
+| **MLA 8** (default) | *Rules for Writers*, 9th ed., by Hacker & Sommers, section 56b (MLA Handbook, 8th ed., 2016) |
+| **APA 6** | *Rules for Writers*, 9th ed., section 61b (APA Publication Manual, 6th ed., 2010, with DOIs written as `https://doi.org/…`) |
+| **MLA 9** | MLA Handbook, 9th ed. (2021), the current MLA edition as of October 2026 |
+| **APA 7** | APA Publication Manual, 7th ed. (2019), the current APA edition as of October 2026 |
+
+The unit tests check the MLA 8 and APA 6 output against model citations printed in *Rules for Writers*.
 
 ## Run it locally
 
@@ -35,7 +41,7 @@ Because anyone can use the hosted version, the server refuses to fetch localhost
 
 ```bash
 npm test          # offline unit tests for the formatting rules
-npm run samples   # fetches real pages and prints MLA + APA output for each
+npm run samples   # fetches real pages and prints MLA 8 + APA 6 output (add --all for MLA 9 / APA 7)
 node test/samples.mjs https://example.com/some-article   # try your own URLs
 ```
 
@@ -43,7 +49,7 @@ node test/samples.mjs https://example.com/some-article   # try your own URLs
 
 ```
 public/index.html, app.js   single-page UI (editable form, live preview, copy)
-public/format.js            MLA 9 / APA 7 formatting, shared by the browser and Node
+public/format.js            MLA 8 / APA 6 / MLA 9 / APA 7 formatting, shared by the browser and Node
 lib/extract.js              fetches the page, extracts metadata, CrossRef lookup
 server.js                   local server: serves public/ and GET /api/extract?url=...
 api/extract.js              the same endpoint as a Vercel serverless function
@@ -72,18 +78,27 @@ details by hand.
 
 ## Formatting rules implemented
 
+### Rules for Writers (MLA 8 and APA 6)
+
+| | MLA 8 (RfW 56b) | APA 6 (RfW 61b) |
+|---|---|---|
+| Authors | 1: `Last, First.` · 2: `Last, First, and First Last.` · 3+: `Last, First, et al.` · organizations are listed as author | `Last, F. M.` · `&` before the last · up to 7 listed; 8+: first 6, `...`, last |
+| Title | Title case, in quotation marks | Sentence case; italic for web documents; plain for articles, plus `[Blog post]` for blog posts |
+| Container | Italic website / newspaper / magazine / journal | Italic newspaper / magazine / journal (with italic volume) |
+| Date | `13 Mar. 2018` (all months abbreviated except May, June, July) | `(2015, May 3)`; journals `(2015)`; `(n.d.)` if none |
+| Publisher | For websites and blogs; omitted when it matches the site title; drop Inc./Co.; `U`/`P` for university publishers | Web documents: `Retrieved from Publisher website: URL` when the publisher isn't the author |
+| Location | DOI as `doi:10.xxxx`, otherwise URL without `http://` | DOI as `https://doi.org/…`; otherwise `Retrieved from URL` (the **home page** URL for newspapers, magazines and journals) |
+| Access/retrieval date | `Accessed 22 Mar. 2016.` only when the source has no date | Wikis: `Retrieved December 10, 2015, from URL`; web pages and blogs only if you tick the box |
+| Wiki | `"Title." Wikipedia, date, URL.` | `Title. (date). In Wikipedia. Retrieved date, from URL` |
+
+### Current editions (MLA 9 and APA 7)
+
 | | MLA 9 | APA 7 |
 |---|---|---|
-| Authors | 1: `Last, First.` · 2: `Last, First, and First Last.` · 3+: `Last, First, et al.` | `Last, F. M.` · `&` before the last author · up to 20 listed; 21+: first 19, `. . .`, last |
-| Title | Title case, in quotation marks | Sentence case; italic for stand-alone web pages, plain for articles |
-| Container | Italic website / periodical / journal | Site name plain, or the periodical/journal italic (with italic volume) |
-| Date | `5 Mar. 2020` (months abbreviated) | `(2020, March 5)`; journals `(2020)`; `(n.d.)` if none |
-| Publisher | Shown for web pages only when it differs from the site name; business words (Inc., LLC) dropped | Not used for web pages |
-| Same org as author and site | Starts with the title | Site name omitted |
-| Pages | `pp. 357-62` | `357–362` |
-| Location | DOI as `https://doi.org/…`, otherwise URL without `https://` | DOI, otherwise full URL; no final period |
-| Access date | `Accessed 8 Oct. 2026.` (can be switched off) | — |
-| Wikipedia | `"Title." Wikipedia, Wikimedia Foundation, date of revision, URL.` | `Title. (date). In Wikipedia. <permanent link to the revision>` |
+| Authors | Same as MLA 8, but an organization that is also the publisher is skipped (entry starts with the title) | Up to 20 listed; 21+: first 19, `. . .`, last |
+| Location | DOI as `https://doi.org/…` | DOI or full URL, with no "Retrieved from"; the site name follows the title |
+| Access date | Optional (on by default, can be switched off) | — |
+| Wiki | Includes the publisher (Wikimedia Foundation) | Permanent link to the revision |
 
 ## Limitations (check the output)
 
@@ -95,7 +110,10 @@ details by hand.
 - **News vs. web page in APA.** APA formats articles from newspapers and magazines as periodicals
   (italic publication name). It formats articles on news *websites* such as CNN or BBC News as web
   pages (italic title). The app picks a type automatically; change **Source type** if it guessed wrong.
-- **Source types.** Supported: web pages, news/magazine/blog articles, journal articles, and wiki
-  entries. Books, chapters, videos, and similar sources aren't formatted specially.
+- **Source types.** Supported: web pages, news/magazine articles, blog posts, journal articles,
+  and wiki entries. Books, chapters, videos, and similar sources aren't formatted specially.
 - **DOIs registered outside CrossRef** (for example DataCite datasets) fall back to the landing page's metadata.
+- **Things the app can't know.** For example: a newspaper's city in brackets when it isn't in the name
+  (MLA, RfW item 15), a journal's season ("Fall 2015"), or whether an APA 6 home-page URL really is the
+  journal's home page. The notes under the citation point these out where they apply.
 - Some sites block automated requests (HTTP 403 or a CAPTCHA). Fill in the form by hand for those.

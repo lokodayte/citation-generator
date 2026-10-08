@@ -1,5 +1,6 @@
 // Runs the extractor + formatter on real URLs and prints MLA and APA output.
-// Usage: node test/samples.mjs [url ...]   (italics shown as *asterisks*)
+// Usage: node test/samples.mjs [--all] [url ...]   (italics shown as *asterisks*)
+// Prints the Rules for Writers styles (MLA 8, APA 6); --all adds MLA 9 and APA 7.
 import { extractCitation } from '../lib/extract.js';
 import { convertTitle, formatCitation, styleNotes, toMarkdown, todayDate } from '../public/format.js';
 
@@ -13,7 +14,10 @@ const DEFAULT_URLS = [
   'https://www.python.org/this-page-does-not-exist',                                 // error: 404
 ];
 
-const urls = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_URLS;
+const args = process.argv.slice(2);
+const styles = args.includes('--all') ? ['mla8', 'apa6', 'mla9', 'apa7'] : ['mla8', 'apa6'];
+const given = args.filter(a => a !== '--all');
+const urls = given.length ? given : DEFAULT_URLS;
 
 for (const url of urls) {
   console.log(`\n### ${url}`);
@@ -32,7 +36,7 @@ for (const url of urls) {
     console.log(`  ${k}: ${v}   [${r.sources[k] || ''}]`);
   }
   for (const w of r.warnings) console.log(`  warning: ${w}`);
-  for (const style of ['mla', 'apa']) {
+  for (const style of styles) {
     const t = convertTitle(f.title, style, r.hints);
     const d = { ...f, title: t.text, accessed: todayDate(), includeAccessed: true };
     console.log(`${style.toUpperCase()}: ${toMarkdown(formatCitation(d, style))}`);

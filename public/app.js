@@ -1,5 +1,5 @@
 import {
-  TYPES, parseDate, dateToInput, todayDate, parseAuthorLine, authorToLine,
+  STYLES, styleFamily, TYPES, parseDate, dateToInput, todayDate, parseAuthorLine, authorToLine,
   convertTitle, formatCitation, styleNotes, toHTML, toText,
 } from './format.js';
 
@@ -8,14 +8,15 @@ const form = $('#fields');
 const f = name => form.elements[name];
 
 const state = {
-  style: 'mla',
+  style: 'mla8',
   sources: {},
   warnings: [],
   hints: [],
   rawTitle: '',
-  titles: { mla: '', apa: '' },      // each style keeps its own casing
+  // Titles are kept per style family (MLA title case / APA sentence case).
+  titles: { mla: '', apa: '' },
   recased: { mla: false, apa: false }, // casing was changed automatically
-  edited: { mla: false, apa: false },  // user has edited this style's title
+  edited: { mla: false, apa: false },  // user has edited this family's title
 };
 
 for (const [value, label] of Object.entries(TYPES)) f('type').add(new Option(label, value));
@@ -65,11 +66,11 @@ function load({ fields, sources, warnings, hints }) {
   state.warnings = warnings || [];
   state.hints = hints || [];
   state.rawTitle = fields.title || '';
-  for (const style of ['mla', 'apa']) {
-    const t = convertTitle(state.rawTitle, style, state.hints);
-    state.titles[style] = t.text;
-    state.recased[style] = t.changed;
-    state.edited[style] = false;
+  for (const fam of ['mla', 'apa']) {
+    const t = convertTitle(state.rawTitle, fam, state.hints);
+    state.titles[fam] = t.text;
+    state.recased[fam] = t.changed;
+    state.edited[fam] = false;
   }
   f('type').value = fields.type || 'webpage';
   f('authors').value = (fields.authors || []).map(authorToLine).join('\n');
@@ -84,7 +85,7 @@ function load({ fields, sources, warnings, hints }) {
   f('permalink').value = fields.permalink || '';
   if (!f('accessed').value) f('accessed').value = dateToInput(todayDate());
   state.articleNumber = fields.articleNumber || '';
-  f('title').value = state.titles[state.style];
+  f('title').value = state.titles[styleFamily(state.style)];
 
   for (const el of document.querySelectorAll('[data-src]')) {
     const key = el.dataset.src;
@@ -105,7 +106,7 @@ function readForm() {
   return {
     type: f('type').value,
     authors: f('authors').value.split('\n').map(parseAuthorLine).filter(Boolean),
-    title: state.titles[state.style].trim(),
+    title: state.titles[styleFamily(state.style)].trim(),
     container: f('container').value.trim(),
     publisher: f('publisher').value.trim(),
     date: parseDate(f('date').value),
@@ -118,23 +119,26 @@ function readForm() {
     permalink: f('permalink').value.trim(),
     accessed: parseDate(f('accessed').value),
     includeAccessed: f('includeAccessed').checked,
+    includeRetrieved: f('includeRetrieved').checked,
   };
 }
 
 function render() {
   const d = readForm();
   const style = state.style;
+  const fam = styleFamily(style);
 
   // Show only the fields that matter for this style and source type.
   for (const el of form.querySelectorAll('[data-show]')) {
     el.hidden = !el.dataset.show.split(';').some(rule => {
       const [s, types] = rule.split(':');
-      return (s === '*' || s === style) && (types === '*' || types.split(',').includes(d.type));
+      return (s === '*' || s === style || s === fam) && (types === '*' || types.split(',').includes(d.type));
     });
   }
-  $('#container-label').textContent = { journal: 'Journal name', article: 'Periodical / blog name', wiki: 'Wiki name', webpage: 'Website name' }[d.type];
-  $('#title-label').textContent = style === 'apa' ? 'Title (sentence case)' : 'Title (title case)';
-  $('#out-label').textContent = style === 'apa' ? 'APA 7 reference' : 'MLA 9 Works Cited entry';
+  $('#container-label').textContent = { journal: 'Journal name', article: 'Newspaper / magazine name', blog: 'Blog name', wiki: 'Wiki name', webpage: 'Website name' }[d.type];
+  $('#title-label').textContent = fam === 'apa' ? 'Title (sentence case)' : 'Title (title case)';
+  $('#out-label').textContent = `${STYLES[style].name} — ${fam === 'apa' ? 'reference list entry' : 'Works Cited entry'}`;
+  $('#accessed-label').textContent = fam === 'apa' ? 'Retrieved' : style === 'mla8' ? 'Accessed (used only if there’s no date)' : 'Accessed';
 
   const dateRaw = f('date').value.trim();
   $('#date-help').textContent = dateRaw && !d.date ? 'Couldn’t read this date — use YYYY-MM-DD, YYYY-MM or YYYY.' : '';
@@ -143,8 +147,8 @@ function render() {
   $('#accessed-help').textContent = accRaw && !d.accessed ? 'Couldn’t read this date.' : '';
   $('#accessed-help').className = 'help' + (accRaw && !d.accessed ? ' bad' : '');
 
-  const titleHelp = state.recased[style] && !state.edited[style]
-    ? (style === 'apa'
+  const titleHelp = state.recased[fam] && !state.edited[fam]
+    ? (fam === 'apa'
       ? 'Converted to sentence case automatically — make sure proper nouns are still capitalized.'
       : 'Converted to title case automatically — check it.')
     : '';
@@ -161,8 +165,9 @@ function render() {
 
 form.addEventListener('input', e => {
   if (e.target.name === 'title') {
-    state.titles[state.style] = e.target.value;
-    state.edited[state.style] = true;
+    const fam = styleFamily(state.style);
+    state.titles[fam] = e.target.value;
+    state.edited[fam] = true;
   }
   render();
 });
@@ -171,7 +176,7 @@ form.addEventListener('submit', e => e.preventDefault());
 for (const radio of document.querySelectorAll('input[name=style]')) {
   radio.addEventListener('change', () => {
     state.style = radio.value;
-    f('title').value = state.titles[state.style];
+    f('title').value = state.titles[styleFamily(state.style)];
     if (!$('#result').hidden) render();
   });
 }
@@ -203,7 +208,7 @@ $('#copy').addEventListener('click', async () => {
 // Remember the style choice between visits.
 try {
   const saved = localStorage.getItem('citation-style');
-  if (saved === 'apa' || saved === 'mla') {
+  if (STYLES[saved]) {
     document.querySelector(`input[name=style][value=${saved}]`).checked = true;
     state.style = saved;
   }

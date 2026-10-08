@@ -1,16 +1,29 @@
-// Citation formatting for the MLA Handbook, 9th ed. (2021) and the
-// Publication Manual of the APA, 7th ed. (2019).
-// Pure functions, shared by the browser UI, the server, and the tests.
+// Citation formatting. Pure functions, shared by the browser UI, the server,
+// and the tests. Four styles:
+//   mla8 / apa6 — as taught in Hacker & Sommers, Rules for Writers, 9th ed.
+//                 (MLA Handbook 8th ed., 2016; APA Publication Manual 6th ed.,
+//                 2010, with DOIs written as https://doi.org/...). "RfW" below
+//                 cites that book's section/item numbers.
+//   mla9 / apa7 — MLA Handbook 9th ed. (2021); APA Publication Manual 7th ed. (2019).
 
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
-// MLA 9 abbreviates months longer than four letters (MLA 9, 1.6 / 2.94).
+// MLA abbreviates all months except May, June, and July (RfW 56b; MLA 9, 2.94).
 const MLA_MONTHS = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'June', 'July', 'Aug.', 'Sept.',
   'Oct.', 'Nov.', 'Dec.'];
 
+export const STYLES = {
+  mla8: { label: 'MLA 8', family: 'mla', edition: 8, name: 'MLA (Rules for Writers, 9th ed.)' },
+  apa6: { label: 'APA 6', family: 'apa', edition: 6, name: 'APA (Rules for Writers, 9th ed.)' },
+  mla9: { label: 'MLA 9', family: 'mla', edition: 9, name: 'MLA 9th edition (2021)' },
+  apa7: { label: 'APA 7', family: 'apa', edition: 7, name: 'APA 7th edition (2019)' },
+};
+export const styleFamily = style => STYLES[style]?.family || (String(style).startsWith('apa') ? 'apa' : 'mla');
+
 export const TYPES = {
   webpage: 'Web page',
-  article: 'News, magazine, or blog article',
+  article: 'News or magazine article',
+  blog: 'Blog post',
   journal: 'Journal article',
   wiki: 'Wikipedia / wiki entry',
 };
@@ -69,6 +82,12 @@ export function todayDate() {
 export function mlaDate(d) {
   if (!d) return '';
   return [d.day, d.month && MLA_MONTHS[d.month - 1], d.year].filter(Boolean).join(' ');
+}
+
+// "December 10, 2015" — APA retrieval dates.
+export function longDate(d) {
+  if (!d) return '';
+  return d.month ? `${MONTHS[d.month - 1]}${d.day ? ' ' + d.day : ''}, ${d.year}` : String(d.year);
 }
 
 // APA: "2020, March 5"; journals use the year only; "n.d." when undated.
@@ -137,8 +156,8 @@ function mlaNatural(a) {
   if (a.name != null) return a.name;
   return [a.given, a.family].filter(Boolean).join(' ') + (a.suffix ? ', ' + a.suffix : '');
 }
-// MLA 9 (2.1.1): one author inverted; two: "A, and B" (second in normal order);
-// three or more: first author + "et al."
+// MLA (RfW 56b items 1–3; MLA 9, 2.1.1): one author inverted; two: "A, and B"
+// (second in normal order); three or more: first author + "et al."
 export function mlaAuthors(list) {
   if (!list.length) return '';
   if (list.length === 1) return mlaInverted(list[0]);
@@ -151,19 +170,24 @@ function apaName(a) {
   const ini = initials(a.given);
   return [a.family, ini, a.suffix].filter(Boolean).join(', ');
 }
-// APA 7 (9.8): up to 20 authors, "&" before the last; 21+: first 19, ". . .", last.
-export function apaAuthors(list) {
+// APA 6 (RfW 61b items 2–3): up to seven authors, "&" before the last; eight or
+// more: first six, three ellipsis dots, last.
+// APA 7 (9.8): up to 20 authors; 21+: first 19, ". . .", last.
+export function apaAuthors(list, edition = 7) {
   const n = list.map(apaName);
   if (!n.length) return '';
   if (n.length === 1) return n[0];
-  if (n.length <= 20) return `${n.slice(0, -1).join(', ')}, & ${n[n.length - 1]}`;
+  const max = edition === 6 ? 7 : 20;
+  if (n.length <= max) return `${n.slice(0, -1).join(', ')}, & ${n[n.length - 1]}`;
+  if (edition === 6) return `${n.slice(0, 6).join(', ')}, ... ${n[n.length - 1]}`;
   return `${n.slice(0, 19).join(', ')}, . . . ${n[n.length - 1]}`;
 }
 
 /* ----------------------------------------------------------- title casing */
 
-// Words MLA lowercases in title case unless first/last/after a colon:
-// articles, prepositions, coordinating conjunctions, "to" (MLA 9, 1.2).
+// Words MLA lowercases in title case unless first or last in the title or
+// subtitle: articles, prepositions, coordinating conjunctions, the "to" in
+// infinitives (RfW 56b general guidelines; MLA 9, 1.2).
 const MINOR = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet',
   'about', 'above', 'across', 'against', 'along', 'amid', 'among', 'around', 'at', 'behind',
   'below', 'beneath', 'beside', 'between', 'beyond', 'by', 'despite', 'during', 'from', 'in',
@@ -196,7 +220,7 @@ export function titleCase(s) {
     if (!core) { if (endsClause(toks[i])) capNext = true; continue; }
     let out;
     if (isSpecial(core)) out = core;
-    else if (!capNext && i !== last && MINOR.has(core.toLowerCase())) out = core.toLowerCase();
+    else if (!capNext && i !== last && !endsClause(trail) && MINOR.has(core.toLowerCase())) out = core.toLowerCase();
     else out = core.split('-').map((p, j) => (j > 0 && MINOR.has(p.toLowerCase()) ? p.toLowerCase() : capFirst(p))).join('-');
     toks[i] = lead + out + trail;
     capNext = endsClause(trail);
@@ -241,7 +265,7 @@ export function sentenceCase(s, hints = []) {
 // Returns the title as the style wants it, plus whether casing was changed.
 export function convertTitle(title, style, hints = []) {
   if (!title) return { text: '', changed: false };
-  const text = style === 'apa' ? sentenceCase(title, hints) : titleCase(title);
+  const text = styleFamily(style) === 'apa' ? sentenceCase(title, hints) : titleCase(title);
   return { text, changed: text !== title };
 }
 
@@ -264,9 +288,15 @@ export function sameEntity(a, b) {
   return x === y || x.replace(/ /g, '') === y.replace(/ /g, '') || x.startsWith(y + ' ') || y.startsWith(x + ' ');
 }
 
-// MLA 9 omits business words such as Inc., Company, Corporation, Ltd. (2.5.2)
-function mlaPublisher(p) {
-  return p.replace(/,?\s+(Inc\.?|LLC|Ltd\.?|Limited|Corporation|Corp\.?|Company|Co\.)$/i, '').trim();
+// MLA drops business words such as Inc. and Co., and abbreviates university
+// publishers with "U" and "P" — "Princeton UP", "Fordham U", "U of Sussex"
+// (RfW 56b "Publication information"; MLA 9, 2.5.2).
+export function mlaPublisher(p) {
+  let out = p.replace(/,?\s+(Inc\.?|LLC|Ltd\.?|Limited|Corporation|Corp\.?|Company|Co\.)$/i, '').trim();
+  if (/\bUniversity\b/.test(out)) {
+    out = out.replace(/\bUniversity Press\b/g, 'UP').replace(/\bUniversity\b/g, 'U').replace(/\bPress\b/g, 'P');
+  }
+  return out;
 }
 
 function splitRange(pages) {
@@ -304,20 +334,21 @@ class Builder {
 /*
  * d = { type, authors[], title (already cased), container, publisher, date{},
  *       volume, issue, pages, articleNumber, doi, url, permalink, accessed{},
- *       includeAccessed }
+ *       includeAccessed (MLA 9), includeRetrieved (APA 6 web pages and blogs) }
  * Returns an array of {text, italic?} segments.
  */
-export function formatMLA(d) {
+export function formatMLA(d, edition = 9) {
+  const book = edition === 8;
   const b = new Builder();
   let authors = d.type === 'wiki' ? [] : (d.authors || []);
-  let publisher = d.publisher ? mlaPublisher(d.publisher) : '';
+  const publisher = d.publisher ? mlaPublisher(d.publisher) : '';
 
-  // A work by an organisation that is also its publisher starts with the
-  // title; the organisation is given as publisher (MLA 9, 2.1.3).
-  if (authors.length === 1 && authors[0].name != null) {
-    const org = authors[0].name;
-    if (sameEntity(org, d.container)) authors = [];
-    else if (sameEntity(org, publisher)) authors = [];
+  // MLA 9 (2.1.3): a work by an organisation that is also its publisher starts
+  // with the title. Rules for Writers (56b item 4, 35b, 56) always lists the
+  // organisation as author, so mla8 keeps it.
+  if (!book && authors.length === 1 && authors[0].name != null &&
+      (sameEntity(authors[0].name, d.container) || sameEntity(authors[0].name, publisher))) {
+    authors = [];
   }
 
   const a = mlaAuthors(authors);
@@ -329,14 +360,19 @@ export function formatMLA(d) {
   if (d.container) els.push([{ text: d.container, italic: true }]);
   if (d.volume) els.push([{ text: `vol. ${d.volume}` }]);
   if (d.issue) els.push([{ text: `no. ${d.issue}` }]);
-  // Publisher is omitted for periodicals (news, journals, blogs) and when it
-  // matches the website name (MLA 9, 2.5.3).
-  if (publisher && (d.type === 'webpage' || d.type === 'wiki') && !sameEntity(publisher, d.container)) {
+  // Publisher: given for websites and blogs, omitted for newspapers, magazines
+  // and journals, and when it is the same as the website's title (RfW 56b
+  // general guidelines, items 36–37; MLA 9, 2.5.3). Rules for Writers' wiki
+  // model has no publisher (“House Music.” Wikipedia, ...; item 23).
+  const publisherTypes = book ? ['webpage', 'blog'] : ['webpage', 'blog', 'wiki'];
+  if (publisher && publisherTypes.includes(d.type) && !sameEntity(publisher, d.container)) {
     els.push([{ text: publisher }]);
   }
   if (d.date) els.push([{ text: mlaDate(d.date) }]);
   if (d.pages) els.push([{ text: mlaPages(d.pages) }]);
-  const loc = d.doi ? doiUrl(d.doi) : stripProtocol(d.url);
+  // DOI: "doi:10.1086/668300" in Rules for Writers (items 12–13); MLA 9 uses
+  // https://doi.org/. URLs drop the protocol in both.
+  const loc = d.doi ? (book ? `doi:${d.doi}` : doiUrl(d.doi)) : stripProtocol(d.url);
   if (loc) els.push([{ text: loc }]);
 
   els.forEach((el, idx) => {
@@ -347,31 +383,40 @@ export function formatMLA(d) {
     const lastText = els[els.length - 1].at(-1).text;
     if (!endsWithPunct(lastText)) b.t('.');
   }
-  if (d.includeAccessed && d.accessed) b.t(` Accessed ${mlaDate(d.accessed)}.`);
+  // Access date: Rules for Writers adds it only when the source has no date
+  // (56b "Dates"); for MLA 9 it is optional, so the user chooses.
+  const accessed = book ? !d.date : d.includeAccessed;
+  if (accessed && d.accessed) b.t(` Accessed ${mlaDate(d.accessed)}.`);
   return tidy(b.segs);
 }
 
-export function formatAPA(d) {
+export function formatAPA(d, edition = 7) {
+  const apa6 = edition === 6;
   const authors = d.type === 'wiki' ? [] : (d.authors || []);
-  const a = apaAuthors(authors);
+  const a = apaAuthors(authors, edition);
   const date = `(${apaDate(d.date, d.type === 'journal')}).`;
+  const container = d.container || '';
+  const orgAuthorIsSite = authors.length === 1 && authors[0].name != null && sameEntity(authors[0].name, container);
+  // APA 7 treats blog posts as periodical articles; APA 6 labels them [Blog post].
+  const type = !apa6 && d.type === 'blog' ? 'article' : d.type;
 
-  // Title: italic for stand-alone web pages; plain for articles and wiki entries.
+  // Title: italic for stand-alone web documents; plain for articles, blog
+  // posts and wiki entries.
   const title = new Builder();
   if (d.title) {
-    if (d.type === 'webpage') title.i(d.title).t(endsWithPunct(d.title) ? '' : '.');
+    if (type === 'webpage') title.i(d.title).t(endsWithPunct(d.title) ? '' : '.');
+    else if (type === 'blog') title.t(`${d.title} [Blog post].`); // RfW 61b item 36
     else title.t(withPeriod(d.title));
   }
 
   const source = new Builder();
-  const container = d.container || '';
-  if (d.type === 'webpage') {
-    // Omit the site name when it is the same as the author (APA 7, 9.19 / 10.16).
-    const sameAsAuthor = authors.length === 1 && authors[0].name != null && sameEntity(authors[0].name, container);
-    if (container && !sameAsAuthor) source.t(withPeriod(container));
-  } else if (d.type === 'article') {
+  if (type === 'webpage') {
+    // APA 7 gives the site name unless it is the author (9.19 / 10.16). APA 6
+    // names the publisher in the retrieval statement instead (below).
+    if (!apa6 && container && !orgAuthorIsSite) source.t(withPeriod(container));
+  } else if (type === 'article') {
     if (container) source.i(container).t('.');
-  } else if (d.type === 'journal') {
+  } else if (type === 'journal') {
     if (container) {
       source.i(container + (d.volume ? `, ${d.volume}` : ''));
       if (d.issue) source.t(`(${d.issue})`);
@@ -379,17 +424,35 @@ export function formatAPA(d) {
       else if (d.articleNumber) source.t(`, Article ${d.articleNumber}`);
       source.t('.');
     }
-  } else if (d.type === 'wiki') {
+  } else if (type === 'wiki') {
     if (container) source.t('In ').i(container).t('.');
   }
 
-  const link = d.doi ? doiUrl(d.doi) : (d.type === 'wiki' && d.permalink) ? d.permalink : (d.url || '');
+  let link = '';
+  if (d.doi) {
+    link = doiUrl(d.doi);
+  } else if (apa6 && d.url) {
+    // Rules for Writers 61b: newspapers, magazines and journals without a DOI
+    // give the publication's home page (items 11–13); a web document names its
+    // publisher when it isn't the author (item 34); a wiki entry gets a
+    // retrieval date (item 19b); other retrieval dates only when content is
+    // likely to change (general guidelines).
+    if (type === 'article' || type === 'journal') {
+      link = `Retrieved from ${homePage(d.url)}`;
+    } else {
+      const site = type === 'webpage' && container && !orgAuthorIsSite ? `${container} website: ` : '';
+      const dated = d.accessed && (type === 'wiki' || d.includeRetrieved);
+      link = dated ? `Retrieved ${longDate(d.accessed)}, from ${site}${d.url}` : `Retrieved from ${site}${d.url}`;
+    }
+  } else {
+    link = type === 'wiki' && d.permalink ? d.permalink : (d.url || '');
+  }
 
   const parts = [];
   if (a) {
     parts.push([{ text: `${withPeriod(a)} ${date}` }], title.segs);
   } else {
-    // No author: the title moves to the author position (APA 7, 9.12).
+    // No author: the title moves to the author position (RfW 61b item 5; APA 7, 9.12).
     parts.push(title.segs, [{ text: date }]);
   }
   parts.push(source.segs, link ? [{ text: link }] : []);
@@ -397,6 +460,10 @@ export function formatAPA(d) {
   const b = new Builder();
   parts.filter(p => p.length).forEach((p, i) => { if (i) b.t(' '); b.add(p); });
   return tidy(b.segs);
+}
+
+function homePage(url) {
+  try { return new URL(url).origin + '/'; } catch { return url; }
 }
 
 function tidy(segs) {
@@ -410,10 +477,12 @@ function tidy(segs) {
   return out;
 }
 
+// style: 'mla8' | 'apa6' | 'mla9' | 'apa7' ('mla' / 'apa' mean the newer editions).
 export function formatCitation(d, style) {
   // Site/periodical names are titles: capitalise a leading article ("the Guardian").
   if (d.container) d = { ...d, container: d.container.replace(/^(the|a|an)\b/, w => capFirst(w)) };
-  return style === 'apa' ? formatAPA(d) : formatMLA(d);
+  const { family, edition } = STYLES[style] || { family: styleFamily(style), edition: styleFamily(style) === 'apa' ? 7 : 9 };
+  return family === 'apa' ? formatAPA(d, edition) : formatMLA(d, edition);
 }
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -424,16 +493,27 @@ export const toMarkdown = segs => segs.map(s => (s.italic ? `*${s.text}*` : s.te
 // Notes explaining how missing data was handled under each style's rules.
 export function styleNotes(d, style) {
   const notes = [];
+  const { family, edition } = STYLES[style] || { family: styleFamily(style), edition: 0 };
   const hasAuthors = d.type !== 'wiki' && d.authors && d.authors.length;
   if (!d.title) notes.push('No title — add one before copying.');
-  if (style === 'apa') {
+  if (family === 'apa') {
     if (!d.date) notes.push('No publication date found, so APA uses “n.d.”.');
-    if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the title moves to the author position (APA 7, 9.12).');
-    if (d.type === 'wiki' && !d.permalink) notes.push('APA recommends linking to the archived version of a wiki page (e.g., the Wikipedia “Permanent link”).');
-    if (d.type === 'journal' && !d.doi) notes.push('No DOI found; the URL is used instead.');
+    if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the title moves to the author position.');
+    if (edition === 6) {
+      if (!d.doi && (d.type === 'article' || d.type === 'journal') && d.url) {
+        notes.push('Rules for Writers gives the publication’s home page URL (not the article’s) when there is no DOI — check that it is the right home page.');
+      }
+      if (d.type === 'wiki') notes.push('Wiki entries include the date you retrieved them (Rules for Writers 61b, item 19b).');
+    } else {
+      if (d.type === 'wiki' && !d.permalink) notes.push('APA 7 recommends linking to the archived version of a wiki page (e.g., the Wikipedia “Permanent link”).');
+      if (d.type === 'journal' && !d.doi) notes.push('No DOI found; the URL is used instead.');
+    }
   } else {
-    if (!d.date) notes.push('No publication date found, so it’s left out. MLA recommends keeping the access date in that case.');
-    if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the entry starts with the title (MLA 9, 2.1.3).');
+    if (!d.date) notes.push(edition === 8
+      ? 'No publication date found, so it’s left out and your access date is added at the end (Rules for Writers 56b).'
+      : 'No publication date found, so it’s left out. MLA recommends keeping the access date in that case.');
+    if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the entry starts with the title.');
+    if (edition === 8 && d.type === 'article') notes.push('If the newspaper’s city isn’t in its name, add it in brackets after the title, e.g. Plain Dealer [Cleveland] (Rules for Writers 56b, item 15).');
   }
   if (!d.container) notes.push(`No ${d.type === 'journal' ? 'journal' : 'website/periodical'} name found — left out.`);
   return notes;

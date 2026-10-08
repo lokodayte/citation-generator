@@ -17,6 +17,20 @@ npm start
 
 Then open http://localhost:3000. Set a different port with `PORT=8080 npm start`.
 
+## Put it on the web (free, on Vercel)
+
+The repo is ready for Vercel as is. `public/` is served as a static site and `api/extract.js` runs as a serverless function, so nothing has to be started by hand.
+
+1. Go to https://vercel.com/new and sign in with GitHub.
+2. Pick this repository, then click **Import**.
+3. Leave every setting at its default and click **Deploy**.
+
+You get a public address such as `https://citation-generator-xyz.vercel.app`. Every push to `main` redeploys it automatically.
+
+Want your own copy? [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/lokodayte/citation-generator)
+
+Because anyone can use the hosted version, the server refuses to fetch localhost or private-network addresses. It checks DNS results and every redirect. Successful lookups are cached for an hour.
+
 ## Tests
 
 ```bash
@@ -31,7 +45,9 @@ node test/samples.mjs https://example.com/some-article   # try your own URLs
 public/index.html, app.js   single-page UI (editable form, live preview, copy)
 public/format.js            MLA 9 / APA 7 formatting, shared by the browser and Node
 lib/extract.js              fetches the page, extracts metadata, CrossRef lookup
-server.js                   serves public/ and GET /api/extract?url=...
+server.js                   local server: serves public/ and GET /api/extract?url=...
+api/extract.js              the same endpoint as a Vercel serverless function
+lib/handler.js              request handling shared by both
 ```
 
 The backend fetches the page so the browser doesn't run into CORS limits. It looks for each

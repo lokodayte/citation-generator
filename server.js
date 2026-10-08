@@ -3,7 +3,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extractCitation, ExtractError } from './lib/extract.js';
+import { handleExtract } from './lib/handler.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -23,19 +23,7 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if (url.pathname === '/api/extract') {
-    try {
-      send(res, 200, await extractCitation(url.searchParams.get('url')));
-    } catch (e) {
-      if (e instanceof ExtractError) {
-        send(res, 422, { error: e.message, code: e.code, status: e.status });
-      } else {
-        console.error(e);
-        send(res, 500, { error: `Unexpected error: ${e.message}`, code: 'internal' });
-      }
-    }
-    return;
-  }
+  if (url.pathname === '/api/extract') return handleExtract(req, res);
 
   const file = path.normalize(path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname));
   if (!file.startsWith(PUBLIC + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');

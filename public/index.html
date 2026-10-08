@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citation Generator</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #fff; --text: #1d1d1f; --muted: #6b6b70; --line: #e2e0da;
+    --accent: #2f5bd3; --accent-ink: #fff; --warn-bg: #fff6e0; --warn: #8a5a00;
+    --err-bg: #fdecec; --err: #a1261d; --ok: #1d7a3d; --field: #fbfbfa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161618; --card: #202023; --text: #ececee; --muted: #9a9aa2; --line: #34343a;
+      --accent: #7b9cff; --accent-ink: #0d1020; --warn-bg: #3a2f14; --warn: #f0c46a;
+      --err-bg: #3d1d1b; --err: #ff9a91; --ok: #6fd18f; --field: #18181b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+  form.lookup { display: grid; gap: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=text], select, textarea {
+    width: 100%; font: inherit; color: inherit; background: var(--field);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { resize: vertical; min-height: 64px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 8px 14px; cursor: pointer; user-select: none; }
+  .seg input:checked + label { background: var(--accent); color: var(--accent-ink); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+  button { font: inherit; border-radius: 8px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .linkish { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; }
+  .spacer { flex: 1; }
+  .banner { border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; }
+  .banner.err { background: var(--err-bg); color: var(--err); }
+  .banner strong { display: block; }
+  .citation { font-family: "Times New Roman", Times, serif; font-size: 17px; line-height: 1.7;
+    padding-left: 2em; text-indent: -2em; overflow-wrap: anywhere; margin: 0 0 14px; }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .copied { color: var(--ok); font-size: 14px; }
+  ul.notes { margin: 14px 0 0; padding: 10px 14px 10px 30px; background: var(--warn-bg); color: var(--warn); border-radius: 8px; font-size: 14px; }
+  ul.notes:empty { display: none; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .grid .full { grid-column: 1 / -1; }
+  .field label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .src { font-weight: 400; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .src.missing { color: var(--warn); }
+  .help { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .help.bad { color: var(--err); }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding-top: 24px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Citation Generator</h1>
+  <p class="sub">Paste a link, get an MLA (9th ed.) or APA (7th ed.) citation.</p>
+
+  <form class="card lookup" id="lookup">
+    <input type="text" inputmode="url" id="url" placeholder="https://… or a DOI like 10.1038/s41586-020-2649-2" required autocomplete="off" aria-label="URL to cite">
+    <div class="row">
+      <div class="seg" role="radiogroup" aria-label="Citation style">
+        <input type="radio" name="style" id="s-mla" value="mla" checked><label for="s-mla">MLA 9</label>
+        <input type="radio" name="style" id="s-apa" value="apa"><label for="s-apa">APA 7</label>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" class="linkish" id="manual">Enter details manually</button>
+      <button type="submit" class="primary" id="go">Generate</button>
+    </div>
+  </form>
+
+  <div class="banner err" id="error" role="alert" hidden></div>
+
+  <section id="result" hidden>
+    <div class="card">
+      <div class="label" id="out-label">Works Cited entry</div>
+      <p class="citation" id="citation" aria-live="polite"></p>
+      <div class="row">
+        <button type="button" class="primary" id="copy">Copy citation</button>
+        <span class="copied" id="copied" aria-live="polite"></span>
+      </div>
+      <ul class="notes" id="notes"></ul>
+    </div>
+
+    <form class="card" id="fields" autocomplete="off">
+      <div class="label">Check and edit — the citation updates as you type</div>
+      <div class="grid">
+        <div class="field">
+          <label for="f-type">Source type <span class="src" data-src="type"></span></label>
+          <select id="f-type" name="type"></select>
+        </div>
+        <div class="field">
+          <label for="f-date">Published <span class="src" data-src="date"></span></label>
+          <input type="text" id="f-date" name="date" placeholder="YYYY-MM-DD, YYYY-MM or YYYY">
+          <div class="help" id="date-help"></div>
+        </div>
+        <div class="field full">
+          <label for="f-authors">Authors <span class="src" data-src="authors"></span></label>
+          <textarea id="f-authors" name="authors" rows="3" placeholder="One per line. People: Family, Given (e.g. Smith, Jane A.). Organizations: as written."></textarea>
+          <div class="help">People as “Family, Given”. A line without a comma is an organization; wrap names containing commas in {braces}.</div>
+        </div>
+        <div class="field full">
+          <label for="f-title"><span id="title-label">Title</span> <span class="src" data-src="title"></span></label>
+          <input type="text" id="f-title" name="title">
+          <div class="help" id="title-help"></div>
+        </div>
+        <div class="field">
+          <label for="f-container"><span id="container-label">Website name</span> <span class="src" data-src="container"></span></label>
+          <input type="text" id="f-container" name="container">
+        </div>
+        <div class="field" data-show="mla:webpage,wiki">
+          <label for="f-publisher">Publisher <span class="src" data-src="publisher"></span></label>
+          <input type="text" id="f-publisher" name="publisher">
+          <div class="help">MLA omits it when it matches the website name.</div>
+        </div>
+        <div class="field" data-show="*:journal">
+          <label for="f-volume">Volume <span class="src" data-src="volume"></span></label>
+          <input type="text" id="f-volume" name="volume">
+        </div>
+        <div class="field" data-show="*:journal">
+          <label for="f-issue">Issue <span class="src" data-src="issue"></span></label>
+          <input type="text" id="f-issue" name="issue">
+        </div>
+        <div class="field" data-show="*:journal">
+          <label for="f-pages">Pages <span class="src" data-src="pages"></span></label>
+          <input type="text" id="f-pages" name="pages" placeholder="e.g. 45-67">
+        </div>
+        <div class="field" data-show="*:journal">
+          <label for="f-doi">DOI <span class="src" data-src="doi"></span></label>
+          <input type="text" id="f-doi" name="doi" placeholder="10.xxxx/…">
+        </div>
+        <div class="field full">
+          <label for="f-url">URL <span class="src" data-src="url"></span></label>
+          <input type="text" id="f-url" name="url">
+        </div>
+        <div class="field full" data-show="apa:wiki">
+          <label for="f-permalink">Permanent link (archived version) <span class="src" data-src="permalink"></span></label>
+          <input type="text" id="f-permalink" name="permalink">
+        </div>
+        <div class="field" data-show="mla:*">
+          <label for="f-accessed">Accessed</label>
+          <input type="text" id="f-accessed" name="accessed" placeholder="YYYY-MM-DD">
+          <div class="help" id="accessed-help"></div>
+        </div>
+        <div class="field" data-show="mla:*" style="align-self:center">
+          <label class="check"><input type="checkbox" id="f-include-accessed" name="includeAccessed" checked> Include access date</label>
+        </div>
+      </div>
+    </form>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

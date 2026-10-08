@@ -1,0 +1,13 @@
+{
+  "name": "citation-generator",
+  "version": "1.0.0",
+  "description": "Paste a URL, get an MLA 9 or APA 7 citation.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/unit.mjs",
+    "samples": "node test/samples.mjs"
+  }
+}

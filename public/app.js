@@ -183,26 +183,37 @@ for (const radio of document.querySelectorAll('input[name=style]')) {
 
 /* --------------------------------------------------------------- copy */
 
+// Works-cited / reference-list entries are double-spaced with a 0.5-inch
+// hanging indent (Rules for Writers 57a and 62a; MLA 9 and APA 7 too). Word and
+// Google Docs keep these paragraph styles when rich text is pasted.
+const ENTRY_STYLE = "margin:0 0 0 0.5in;text-indent:-0.5in;line-height:200%;" +
+  "font-family:'Times New Roman',Times,serif;font-size:12pt";
+
 $('#copy').addEventListener('click', async () => {
   const segs = formatCitation(readForm(), state.style);
-  const html = toHTML(segs);
+  const html = `<p style="${ENTRY_STYLE}">${toHTML(segs)}</p>`;
   const text = toText(segs);
   try {
-    // Rich text keeps the italics when pasted into Word / Google Docs.
     await navigator.clipboard.write([new ClipboardItem({
-      'text/html': new Blob([`<span style="font-family:'Times New Roman',serif">${html}</span>`], { type: 'text/html' }),
+      'text/html': new Blob([html], { type: 'text/html' }),
       'text/plain': new Blob([text], { type: 'text/plain' }),
     })]);
   } catch {
+    // Older browsers: copy a hidden, styled copy of the entry instead.
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    box.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.append(box);
     const range = document.createRange();
-    range.selectNodeContents($('#citation'));
+    range.selectNodeContents(box);
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
     document.execCommand('copy');
     sel.removeAllRanges();
+    box.remove();
   }
-  $('#copied').textContent = 'Copied with formatting ✓';
+  $('#copied').textContent = 'Copied ✓ — pastes with hanging indent and double spacing';
 });
 
 // Remember the style choice between visits.

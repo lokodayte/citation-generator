@@ -51,7 +51,7 @@ node test/samples.mjs https://example.com/some-article   # try your own URLs
 public/index.html, app.js   single-page UI (editable form, live preview, copy)
 public/format.js            MLA 8 / APA 6 / MLA 9 / APA 7 formatting, shared by the browser and Node
 lib/extract.js              fetches the page, extracts metadata, CrossRef lookup
-server.js                   local server: serves public/ and GET /api/extract?url=...
+local-server.js             local server (not used on Vercel): serves public/ and GET /api/extract?url=...
 api/extract.js              the same endpoint as a Vercel serverless function
 lib/handler.js              request handling shared by both
 ```

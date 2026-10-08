@@ -1,7 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
   "outputDirectory": "public",
   "functions": {
-    "api/extract.js": { "maxDuration": 40 }
+    "api/extract.js": {
+      "maxDuration": 40,
+      "includeFiles": "public/format.js"
+    }
   }
 }

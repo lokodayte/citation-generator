@@ -38,7 +38,7 @@ for (const url of urls) {
   for (const w of r.warnings) console.log(`  warning: ${w}`);
   for (const style of styles) {
     const t = convertTitle(f.title, style, r.hints);
-    const d = { ...f, title: t.text, accessed: todayDate(), includeAccessed: true };
+    const d = { ...f, title: t.text, accessed: todayDate(), includeAccessed: false };
     console.log(`${style.toUpperCase()}: ${toMarkdown(formatCitation(d, style))}`);
     const notes = styleNotes(d, style);
     if (t.changed) notes.push(`title re-cased from “${f.title}”`);

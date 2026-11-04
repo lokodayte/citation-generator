@@ -110,7 +110,7 @@ stays usable so the details can be entered by hand.
 |---|---|---|
 | Authors | Same as MLA 8, but an organization that is also the publisher is skipped (entry starts with the title) | Up to 20 listed; 21+: first 19, `. . .`, last |
 | Location | DOI as `https://doi.org/…` | DOI or full URL, with no "Retrieved from"; the site name follows the title |
-| Access date | Optional (on by default, can be switched off) | — |
+| Access date | Only when there's no date, unless you tick the box to add it | — |
 | Wiki | Includes the publisher (Wikimedia Foundation) | Permanent link to the revision |
 
 ## Limitations (check the output)

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {
   parseDate, parseName, parseAuthorLine, initials, mlaAuthors, apaAuthors, titleCase,
-  sentenceCase, formatMLA, formatAPA, formatCitation, toMarkdown, mlaDate, apaDate, mlaPublisher,
+  sentenceCase, formatMLA, formatAPA, formatCitation, toMarkdown, mlaDate, apaDate, mlaPublisher, breakableUrl, toClipboardHTML,
 } from '../public/format.js';
 import { extractFromHtml } from '../lib/extract.js';
 import { parseAuthors } from '../lib/page.js';
@@ -367,6 +367,44 @@ test('a byline stops at the date or job title printed after it', () => {
   assert.deepEqual(read('By Adam Davidson Published Nov 4, 2026'), ['Davidson, Adam']);
   assert.deepEqual(read('By Jane Doe and John Smith Updated May 2, 2026'), ['Doe, Jane', 'Smith, John']);
   assert.deepEqual(read('By Mary May'), ['May, Mary']);
+});
+
+test('a found date means no access date, in MLA 8 and MLA 9', () => {
+  const dated = { ...web, date: { year: 2026, month: 2, day: 24 }, includeAccessed: false };
+  assert.doesNotMatch(md(dated, 'mla8'), /Accessed/);
+  assert.doesNotMatch(md(dated, 'mla9'), /Accessed/);
+  assert.match(md({ ...web, date: null, includeAccessed: false }, 'mla8'), /Accessed 8 Oct\. 2026\.$/);
+  assert.match(md({ ...web, date: null, includeAccessed: false }, 'mla9'), /Accessed 8 Oct\. 2026\.$/);
+  assert.match(md({ ...dated, includeAccessed: true }, 'mla9'), /Accessed/); // only if asked
+  assert.doesNotMatch(md({ ...dated, includeAccessed: true }, 'mla8'), /Accessed/);
+});
+
+test('URLs get break points only where the book allows, and stay clean', () => {
+  const b = breakableUrl('www.unesco.org/en/why-it');
+  assert.equal(b, 'www​.unesco​.org/​en/​why​-it');
+  assert.equal(b.replace(/​/g, ''), 'www.unesco.org/en/why-it');
+  assert.equal(breakableUrl('https://x.org').replace(/​/g, '|'), 'https://|x|.org');
+  const d = { ...web, url: 'https://www.unesco.org/en/why-it', date: { year: 2026, month: 2, day: 24 } };
+  const segs = formatCitation(d, 'mla8');
+  const html = toClipboardHTML(segs);
+  assert.match(html, /href="https:\/\/www\.unesco\.org\/en\/why-it"/);
+  assert.match(html, /www​\.unesco/);
+  assert.doesNotMatch(segs.map(x => x.text).join(''), /​/); // plain text stays clean
+  assert.match(html, /margin-left:36pt;text-indent:-36pt/);
+});
+
+test('a publisher similar to the site name is omitted (56b)', () => {
+  const d = { ...web, container: 'The National WWII Museum', publisher: 'The National World War II Museum', date: { year: 2024, month: 5, day: 7 }, url: 'https://x.org/holocaust' };
+  assert.equal(md(d, 'mla8'), '“Example page.” *The National WWII Museum*, 7 May 2024, x.org/holocaust.');
+  assert.match(md({ ...d, publisher: 'Fordham University' }, 'mla8'), /Fordham U,/);
+});
+
+test('a website login in the hidden data is not an author', () => {
+  const r = extractFromHtml(page(`<title>The Holocaust</title>${ld({ '@type': 'Article', headline: 'The Holocaust', author: 'Michal' })}`, '<h1>The Holocaust</h1><p>The Holocaust was a genocide.</p>'), 'https://m.example/war/articles/holocaust');
+  assert.deepEqual(r.fields.authors, []);
+  assert.match(r.warnings.join(' '), /“Michal”.*left out/);
+  const kept = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'Article', headline: 'Story', author: 'Reuters' })}`, '<h1>Story</h1><p>LONDON (Reuters) - Something.</p>'), 'https://m.example/news/story');
+  assert.deepEqual(kept.fields.authors, [{ name: 'Reuters' }]);
 });
 
 test('home pages are flagged', () => {

@@ -187,7 +187,7 @@ function render() {
   $('#container-label').textContent = { journal: 'Journal name', article: 'Newspaper / magazine name', blog: 'Blog name', wiki: 'Wiki name', webpage: 'Website name' }[d.type];
   $('#title-label').textContent = fam === 'apa' ? 'Title (sentence case)' : 'Title (title case)';
   $('#out-label').textContent = `${STYLES[style].name} — ${fam === 'apa' ? 'reference list entry' : 'Works Cited entry'}`;
-  $('#accessed-label').textContent = fam === 'apa' ? 'Retrieved' : style === 'mla8' ? 'Accessed (used only if there’s no date)' : 'Accessed';
+  $('#accessed-label').textContent = fam === 'apa' ? 'Retrieved' : 'Accessed (used only if there’s no date)';
 
   const dateRaw = f('date').value.trim();
   $('#date-help').textContent = dateRaw && !d.date ? 'Couldn’t read this date — use YYYY-MM-DD, YYYY-MM or YYYY.' : '';

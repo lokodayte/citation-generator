@@ -288,6 +288,17 @@ export function sameEntity(a, b) {
   return x === y || x.replace(/ /g, '') === y.replace(/ /g, '') || x.startsWith(y + ' ') || y.startsWith(x + ' ');
 }
 
+// "If the title of a website and the publisher are the same or similar, give the
+// title of the site but omit the publisher" (RfW 56b): "The National WWII Museum" /
+// "The National World War II Museum".
+export function similarEntity(a, b) {
+  if (sameEntity(a, b)) return true;
+  const words = s => new Set(normEntity(s).split(' ').filter(w => w.length > 2 && !/^(and|for|the|of)$/.test(w)));
+  const x = words(a), y = words(b);
+  const shared = [...x].filter(w => y.has(w)).length;
+  return shared >= 2 && shared / Math.min(x.size, y.size) >= 2 / 3;
+}
+
 // MLA drops business words such as Inc. and Co., and abbreviates university
 // publishers with "U" and "P" — "Princeton UP", "Fordham U", "U of Sussex"
 // (RfW 56b "Publication information"; MLA 9, 2.5.2).
@@ -369,7 +380,7 @@ export function formatMLA(d, edition = 9) {
   // general guidelines, items 36–37; MLA 9, 2.5.3). Rules for Writers' wiki
   // model has no publisher (“House Music.” Wikipedia, ...; item 23).
   const publisherTypes = book ? ['webpage', 'blog'] : ['webpage', 'blog', 'wiki'];
-  if (publisher && publisherTypes.includes(d.type) && !sameEntity(publisher, d.container)) {
+  if (publisher && publisherTypes.includes(d.type) && !similarEntity(publisher, d.container)) {
     els.push([{ text: publisher }]);
   }
   // Rules for Writers (56b "Dates", item 36): a web source takes its most recent
@@ -380,7 +391,7 @@ export function formatMLA(d, edition = 9) {
   // DOI: "doi:10.1086/668300" in Rules for Writers (items 12–13); MLA 9 uses
   // https://doi.org/. URLs drop the protocol in both.
   const loc = d.doi ? (book ? `doi:${d.doi}` : doiUrl(d.doi)) : stripProtocol(d.url);
-  if (loc) els.push([{ text: loc }]);
+  if (loc) els.push([{ text: loc, url: true, href: d.doi ? doiUrl(d.doi) : d.url }]);
 
   els.forEach((el, idx) => {
     if (idx) b.t(', ');
@@ -390,9 +401,9 @@ export function formatMLA(d, edition = 9) {
     const lastText = els[els.length - 1].at(-1).text;
     if (!endsWithPunct(lastText)) b.t('.');
   }
-  // Access date: Rules for Writers adds it only when the source has no date
-  // (56b "Dates"); for MLA 9 it is optional, so the user chooses.
-  const accessed = book ? !when : d.includeAccessed;
+  // Access date: only when the source has no date (RfW 56b "Dates"). MLA 9 makes it
+  // optional otherwise, so there the reader can ask for it.
+  const accessed = !when || (!book && d.includeAccessed);
   if (accessed && d.accessed) b.t(` Accessed ${mlaDate(d.accessed)}.`);
   return tidy(b.segs);
 }
@@ -435,9 +446,10 @@ export function formatAPA(d, edition = 7) {
     if (container) source.t('In ').i(container).t('.');
   }
 
-  let link = '';
+  const urlSeg = (text, href = text) => ({ text, url: true, href });
+  let link = [];
   if (d.doi) {
-    link = doiUrl(d.doi);
+    link = [urlSeg(doiUrl(d.doi))];
   } else if (apa6 && d.url) {
     // Rules for Writers 61b: newspapers, magazines and journals without a DOI
     // give the publication's home page (items 11–13); a web document names its
@@ -445,14 +457,14 @@ export function formatAPA(d, edition = 7) {
     // retrieval date (item 19b); other retrieval dates only when content is
     // likely to change (general guidelines).
     if (type === 'article' || type === 'journal') {
-      link = `Retrieved from ${homePage(d.url)}`;
+      link = [{ text: 'Retrieved from ' }, urlSeg(homePage(d.url))];
     } else {
       const site = type === 'webpage' && container && !orgAuthorIsSite ? `${container} website: ` : '';
       const dated = d.accessed && (type === 'wiki' || d.includeRetrieved);
-      link = dated ? `Retrieved ${longDate(d.accessed)}, from ${site}${d.url}` : `Retrieved from ${site}${d.url}`;
+      link = [{ text: `Retrieved ${dated ? longDate(d.accessed) + ', from' : 'from'} ${site}` }, urlSeg(d.url)];
     }
-  } else {
-    link = type === 'wiki' && d.permalink ? d.permalink : (d.url || '');
+  } else if (d.url || d.permalink) {
+    link = [urlSeg(type === 'wiki' && d.permalink ? d.permalink : d.url)];
   }
 
   const parts = [];
@@ -462,7 +474,7 @@ export function formatAPA(d, edition = 7) {
     // No author: the title moves to the author position (RfW 61b item 5; APA 7, 9.12).
     parts.push(title.segs, [{ text: date }]);
   }
-  parts.push(source.segs, link ? [{ text: link }] : []);
+  parts.push(source.segs, link);
 
   const b = new Builder();
   parts.filter(p => p.length).forEach((p, i) => { if (i) b.t(' '); b.add(p); });
@@ -477,7 +489,7 @@ function tidy(segs) {
   const out = [];
   for (const s of segs) {
     const prev = out[out.length - 1];
-    if (prev && !!prev.italic === !!s.italic) prev.text += s.text;
+    if (prev && !!prev.italic === !!s.italic && !prev.url && !s.url) prev.text += s.text;
     else out.push({ ...s });
   }
   if (out.length) out[out.length - 1].text = out[out.length - 1].text.replace(/\s+$/, '');
@@ -494,13 +506,26 @@ export function formatCitation(d, style) {
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// A URL can't wrap on its own in Google Docs or Word: it jumps to the next line and
+// strands a short line above it. These invisible break points use the places the
+// book allows: "before a period or a hyphen or before or after any other mark of
+// punctuation. Do not add a hyphen." (RfW 56b; 57a).
+export function breakableUrl(url) {
+  return url.replace(/([/_?=&%#~@:+,;])(?!\/)/g, '$1\u200B').replace(/(?=[.-])/g, '\u200B');
+}
+
 // Rich text for the clipboard: one works-cited paragraph, written the way Google
 // Docs writes its own clipboard HTML (in Docs' format, 2.4 is double spacing).
 // Double-spaced, 12-point serif, 0.5-inch hanging indent (Rules for Writers 57a, 62a).
+// URLs are real links in plain black, so the break points never reach the address.
 export function toClipboardHTML(segs) {
-  const run = s => `<span style="font-size:12pt;font-family:'Times New Roman',serif;color:#000000;background-color:transparent;font-weight:400;font-style:${s.italic ? 'italic' : 'normal'};font-variant:normal;text-decoration:none;vertical-align:baseline;white-space:pre-wrap;">${esc(s.text)}</span>`;
+  const span = (text, italic) => `<span style="font-size:12pt;font-family:'Times New Roman',serif;color:#000000;background-color:transparent;font-weight:400;font-style:${italic ? 'italic' : 'normal'};font-variant:normal;text-decoration:none;vertical-align:baseline;white-space:pre-wrap;">${esc(text)}</span>`;
+  const run = s => (s.url
+    ? `<a href="${esc(s.href || s.text).replace(/"/g, '&quot;')}" style="text-decoration:none;color:#000000;">${span(breakableUrl(s.text), false)}</a>`
+    : span(s.text, s.italic));
   return `<p dir="ltr" style="line-height:2.4;margin-left:36pt;text-indent:-36pt;margin-top:0pt;margin-bottom:0pt;">${segs.map(run).join('')}</p>`;
 }
+
 export const toHTML = segs => segs.map(s => (s.italic ? `<i>${esc(s.text)}</i>` : esc(s.text))).join('');
 export const toText = segs => segs.map(s => s.text).join('');
 export const toMarkdown = segs => segs.map(s => (s.italic ? `*${s.text}*` : s.text)).join('');

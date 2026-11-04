@@ -1,6 +1,6 @@
 import {
   STYLES, styleFamily, TYPES, parseDate, dateToInput, todayDate, parseAuthorLine, authorToLine,
-  convertTitle, formatCitation, styleNotes, toHTML, toText,
+  convertTitle, formatCitation, styleNotes, toHTML, toText, toClipboardHTML,
 } from './format.js';
 
 const $ = sel => document.querySelector(sel);
@@ -26,24 +26,63 @@ for (const [value, label] of Object.entries(TYPES)) f('type').add(new Option(lab
 $('#lookup').addEventListener('submit', async e => {
   e.preventDefault();
   const url = $('#url').value.trim();
-  if (!url) return;
+  if (url) lookUp(url, fetch(`/api/extract?url=${encodeURIComponent(url)}`));
+});
+
+async function lookUp(url, request) {
   const btn = $('#go');
   btn.disabled = true;
-  btn.textContent = 'Fetching…';
+  btn.textContent = 'Reading the page…';
   hideError();
   try {
-    const res = await fetch(`/api/extract?url=${encodeURIComponent(url)}`);
-    const data = await res.json();
+    const res = await request;
+    let data;
+    try { data = await res.json(); } catch { throw new Error(`The citation service had a problem (HTTP ${res.status}). Try again in a moment.`); }
     if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { code: data.code });
     load(data);
   } catch (err) {
-    showError(err.message);
+    showError(err.message === 'Failed to fetch' ? 'Couldn’t reach the citation service. Check your internet connection and try again.' : err.message, err.code);
     load({ fields: { type: 'webpage', url, authors: [] }, sources: {}, warnings: [], hints: [] });
   } finally {
     btn.disabled = false;
     btn.textContent = 'Generate';
   }
+}
+
+/* -------------------------------------------- the "Cite this page" button */
+
+// Runs on the article, in the reader's browser: collects the page's metadata and
+// the start of its text, and opens this site with them in the URL's #fragment
+// (fragments are not sent to any server by the browser).
+const collectPage = `(function(){
+var d=document,o=[],n=0;
+d.querySelectorAll('title,meta,link[rel~=canonical],script[type="application/ld+json"]').forEach(function(e){
+if(e.closest('svg'))return;var h=e.outerHTML;if(h.length<120000&&n<400000){o.push(h);n+=h.length}});
+var b=d.body.cloneNode(true);
+b.querySelectorAll('script,style,svg,img,picture,video,audio,iframe,noscript,form,canvas,link,meta,[hidden]').forEach(function(e){e.remove()});
+b.querySelectorAll('*').forEach(function(e){Array.from(e.attributes).forEach(function(a){
+if(!/^(class|id|itemprop|rel|href|datetime|pubdate|data-testid|data-component)$/.test(a.name))e.removeAttribute(a.name)})});
+var p=encodeURIComponent(JSON.stringify({u:location.href,h:'<html><head>'+o.join('')+'</head><body>'+b.innerHTML.slice(0,150000)+'</body></html>'}));
+var a='APP/#page='+p;if(!window.open(a))location.href=a})()`;
+$('#bookmarklet').href = 'javascript:' + encodeURI(collectPage.replace(/\n/g, '').replace('APP', location.origin));
+$('#bookmarklet').addEventListener('click', e => {
+  e.preventDefault();
+  $('#button-help').open = true;
+  alert('Drag this button onto your bookmarks bar, then click it while you’re on an article.');
 });
+
+function readSentPage() {
+  if (!location.hash.startsWith('#page=')) return;
+  let sent;
+  try { sent = JSON.parse(decodeURIComponent(location.hash.slice(6))); } catch { return; }
+  history.replaceState(null, '', location.pathname);
+  $('#url').value = sent.u;
+  lookUp(sent.u, fetch('/api/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: sent.u, html: sent.h }),
+  }));
+}
 
 $('#manual').addEventListener('click', () => {
   hideError();
@@ -51,12 +90,20 @@ $('#manual').addEventListener('click', () => {
   f('title').focus();
 });
 
-function showError(msg) {
+const BLOCKED = new Set(['blocked', 'paywall', 'rate_limited', 'timeout', 'network', 'empty', 'server_error']);
+
+function showError(msg, code) {
   const el = $('#error');
   el.innerHTML = '';
   const strong = document.createElement('strong');
   strong.textContent = 'Couldn’t read that page.';
-  el.append(strong, msg, ' You can still fill in the citation by hand below.');
+  el.append(strong, msg);
+  if (BLOCKED.has(code)) {
+    el.append(' Open the article yourself and use the “Cite this page” button, or fill in the details below.');
+    $('#button-help').open = true;
+  } else {
+    el.append(' You can still fill in the citation by hand below.');
+  }
   el.hidden = false;
 }
 function hideError() { $('#error').hidden = true; }
@@ -77,6 +124,7 @@ function load({ fields, sources, warnings, hints }) {
   f('container').value = fields.container || '';
   f('publisher').value = fields.publisher || '';
   f('date').value = dateToInput(parseDate(fields.date));
+  f('updated').value = dateToInput(parseDate(fields.updated));
   f('volume').value = fields.volume || '';
   f('issue').value = fields.issue || '';
   f('pages').value = fields.pages || '';
@@ -110,6 +158,7 @@ function readForm() {
     container: f('container').value.trim(),
     publisher: f('publisher').value.trim(),
     date: parseDate(f('date').value),
+    updated: parseDate(f('updated').value),
     volume: f('volume').value.trim(),
     issue: f('issue').value.trim(),
     pages: f('pages').value.trim(),
@@ -144,6 +193,12 @@ function render() {
   $('#date-help').textContent = dateRaw && !d.date ? 'Couldn’t read this date — use YYYY-MM-DD, YYYY-MM or YYYY.' : '';
   $('#date-help').className = 'help' + (dateRaw && !d.date ? ' bad' : '');
   const accRaw = f('accessed').value.trim();
+  const updRaw = f('updated').value.trim();
+  $('#updated-help').textContent = updRaw && !d.updated ? 'Couldn’t read this date.' : '';
+  $('#updated-help').className = 'help' + (updRaw && !d.updated ? ' bad' : '');
+  const open = $('#open-page');
+  open.hidden = !/^https?:\/\//i.test(d.url);
+  if (!open.hidden) open.href = d.url;
   $('#accessed-help').textContent = accRaw && !d.accessed ? 'Couldn’t read this date.' : '';
   $('#accessed-help').className = 'help' + (accRaw && !d.accessed ? ' bad' : '');
 
@@ -183,15 +238,9 @@ for (const radio of document.querySelectorAll('input[name=style]')) {
 
 /* --------------------------------------------------------------- copy */
 
-// Works-cited / reference-list entries are double-spaced with a 0.5-inch
-// hanging indent (Rules for Writers 57a and 62a; MLA 9 and APA 7 too). Word and
-// Google Docs keep these paragraph styles when rich text is pasted.
-const ENTRY_STYLE = "margin:0 0 0 0.5in;text-indent:-0.5in;line-height:200%;" +
-  "font-family:'Times New Roman',Times,serif;font-size:12pt";
-
 $('#copy').addEventListener('click', async () => {
   const segs = formatCitation(readForm(), state.style);
-  const html = `<p style="${ENTRY_STYLE}">${toHTML(segs)}</p>`;
+  const html = toClipboardHTML(segs);
   const text = toText(segs);
   try {
     await navigator.clipboard.write([new ClipboardItem({
@@ -227,3 +276,5 @@ try {
     r.addEventListener('change', () => { try { localStorage.setItem('citation-style', r.value); } catch {} });
   }
 } catch { /* storage unavailable */ }
+
+readSentPage();

@@ -4,10 +4,15 @@
   "description": "Paste a URL, get an MLA or APA citation (Rules for Writers MLA 8 / APA 6, or MLA 9 / APA 7).",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node local-server.js",
     "test": "node test/unit.mjs",
     "samples": "node test/samples.mjs"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
   }
 }

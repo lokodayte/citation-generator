@@ -14,10 +14,11 @@ The unit tests check the MLA 8 and APA 6 output against model citations printed 
 
 ## Run it locally
 
-You need Node.js 18 or newer. There are no packages to install.
+You need Node.js 18 or newer.
 
 ```bash
 cd citation-generator
+npm install
 npm start
 ```
 
@@ -56,25 +57,37 @@ api/extract.js              the same endpoint as a Vercel serverless function
 lib/handler.js              request handling shared by both
 ```
 
-The backend fetches the page so the browser doesn't run into CORS limits. It looks for each
-field in this order:
+The backend fetches the page so the browser doesn't run into CORS limits. Each field is looked for
+in the structured data (`citation_*` tags, JSON-LD, Open Graph, Twitter cards, Dublin Core) and on the
+visible page (the headline, the byline, the date under the headline), and the two are compared:
 
-1. **Structured data**: `citation_*` meta tags (academic sites), JSON-LD
-   (schema.org Article / NewsArticle / BlogPosting …), Open Graph, Twitter cards, Dublin Core.
-2. **Plain HTML**: `<title>` (minus a trailing "| Site Name"), `<meta name="author">`,
-   `<time>` elements, bylines.
-3. **CrossRef**: if the link is a DOI or the page declares a DOI, the record from
-   `api.crossref.org` replaces the page data. APA uses `https://doi.org/…` as the link.
-   If a publisher page blocks the request but its URL contains a DOI, CrossRef data is used instead.
+- **Title:** the headline printed on the page wins, because a title is cited as printed.
+- **Author:** the structured data, checked against the byline. Credentials ("PhD"), job titles and
+  affiliations ("Jane Doe, CNN") are removed; login names and interface text are rejected. If the
+  publisher is named as the author but a person signed the byline, the person is used. If the data and
+  the byline name different people, the citation shows a warning naming both.
+- **Date:** the structured date, checked against the date shown on the page and in the URL. A UTC
+  timestamp that lands one day off uses the printed date; a real disagreement is flagged. Future dates
+  are rejected.
+- **DOI:** for journal articles the CrossRef record (`api.crossref.org`) replaces the page's data. For
+  anything else with a DOI, CrossRef only fills gaps.
 
-Nothing is guessed. A missing field stays empty and is marked **not found** in the form. The
-citation then follows each style's rule for that gap: APA uses "n.d." for a missing date and
-moves the title to the front when there's no author, and MLA leaves the element out. Every field
-is editable and the citation updates as you type. The form also shows where each value came from.
+Nothing is guessed. A missing field stays empty and is marked **not found** in the form. Every field
+is editable, and the form shows where each value came from.
 
-Fetch failures appear as a clear message: 404, 403/blocked, paywall, rate limiting, timeout,
-DNS error, PDF links, and bot-check/CAPTCHA pages. The form stays usable so you can enter the
-details by hand.
+### When a site refuses the request
+
+Some sites (NYT, Politico, Britannica, Johns Hopkins, APA, ...) refuse automated requests. The app does
+not try to get past those blocks. It has two honest alternatives:
+
+1. **The latest saved copy in the Internet Archive**, if there is one. The citation says so, and the
+   original URL is kept.
+2. **The "Cite this page" button**, a bookmarklet that runs in the reader's own browser, on a page they
+   have already opened. It sends the page's metadata and the start of its text to this app in the URL's
+   `#fragment` and then by POST to `/api/extract`. Nothing is stored.
+
+Other failures appear as a clear message: 404, rate limiting, timeout, DNS error, PDF links. The form
+stays usable so the details can be entered by hand.
 
 ## Formatting rules implemented
 
@@ -85,7 +98,7 @@ details by hand.
 | Authors | 1: `Last, First.` · 2: `Last, First, and First Last.` · 3+: `Last, First, et al.` · organizations are listed as author | `Last, F. M.` · `&` before the last · up to 7 listed; 8+: first 6, `...`, last |
 | Title | Title case, in quotation marks | Sentence case; italic for web documents; plain for articles, plus `[Blog post]` for blog posts |
 | Container | Italic website / newspaper / magazine / journal | Italic newspaper / magazine / journal (with italic volume) |
-| Date | `13 Mar. 2018` (all months abbreviated except May, June, July) | `(2015, May 3)`; journals `(2015)`; `(n.d.)` if none |
+| Date | `13 Mar. 2018` (all months abbreviated except May, June, July); web pages and blogs use the most recent update date | `(2015, May 3)`, the date of posting; journals `(2015)`; `(n.d.)` if none |
 | Publisher | For websites and blogs; omitted when it matches the site title; drop Inc./Co.; `U`/`P` for university publishers | Web documents: `Retrieved from Publisher website: URL` when the publisher isn't the author |
 | Location | DOI as `doi:10.xxxx`, otherwise URL without `http://` | DOI as `https://doi.org/…`; otherwise `Retrieved from URL` (the **home page** URL for newspapers, magazines and journals) |
 | Access/retrieval date | `Accessed 22 Mar. 2016.` only when the source has no date | Wikis: `Retrieved December 10, 2015, from URL`; web pages and blogs only if you tick the box |
@@ -101,6 +114,10 @@ details by hand.
 | Wiki | Includes the publisher (Wikimedia Foundation) | Permanent link to the revision |
 
 ## Limitations (check the output)
+
+No automatic tool can be perfect, because pages sometimes publish wrong or incomplete details. Compare
+each citation with the article; the **open the page to compare** link and the "Check the author/date"
+warnings are there for that.
 
 - **APA sentence case and proper nouns.** Many sites use Title Case headlines. Turning them into
   sentence case can lowercase a proper noun ("Paris" → "paris"). The app keeps words that appear

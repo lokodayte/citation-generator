@@ -5,6 +5,7 @@ import {
   sentenceCase, formatMLA, formatAPA, formatCitation, toMarkdown, mlaDate, apaDate, mlaPublisher,
 } from '../public/format.js';
 import { extractFromHtml } from '../lib/extract.js';
+import { parseAuthors } from '../lib/page.js';
 
 let passed = 0;
 const test = (name, fn) => {
@@ -225,6 +226,150 @@ test('RfW APA wiki entry (item 19b): In Wiki, retrieval date', () => {
   const d = { type: 'wiki', authors: [], title: 'Actor-network theory (ANT)', container: 'STS wiki', date: { year: 2011, month: 2, day: 22 },
     url: 'http://www.stswiki.org/index.php?title=Actor-network_theory', accessed: { year: 2015, month: 12, day: 10 } };
   assert.equal(md(d, 'apa6'), 'Actor-network theory (ANT). (2011, February 22). In *STS wiki*. Retrieved December 10, 2015, from http://www.stswiki.org/index.php?title=Actor-network_theory');
+});
+
+/* ---- reading authors, dates and titles from pages ---- */
+
+const names = raw => parseAuthors(raw).map(a => a.name != null ? `{${a.name}}` : [a.family, a.given].join(', '));
+
+test('author strings: bylines, credentials, affiliations', () => {
+  assert.deepEqual(names('By Jane Doe and John Smith'), ['Doe, Jane', 'Smith, John']);
+  assert.deepEqual(names('Jane Doe, John Smith, and Al Roe'), ['Doe, Jane', 'Smith, John', 'Roe, Al']);
+  assert.deepEqual(names('Adam Zewe | MIT News'), ['Zewe, Adam']);
+  assert.deepEqual(names('Michelle Golden, PhD'), ['Golden, Michelle']);
+  assert.deepEqual(names('Robert N. Johansen Ph.D.'), ['Johansen, Robert N.']);
+  assert.deepEqual(names('Dr. Jane Doe'), ['Doe, Jane']);
+  assert.deepEqual(names('Jane Doe, CNN'), ['Doe, Jane']);
+  assert.deepEqual(names('Jane Doe, Staff Writer'), ['Doe, Jane']);
+  assert.deepEqual(names('Jane Doe for The Times'), ['Doe, Jane']);
+  assert.deepEqual(names('Doe, Jane'), ['Doe, Jane']);
+  assert.deepEqual(names('JANE DOE'), ['Doe, Jane']);
+  assert.deepEqual(names('Stevie Bonifield Stevie Bonifield'), ['Bonifield, Stevie']);
+  assert.deepEqual(names('Yo-Yo Ma'), ['Ma, Yo-Yo']);
+  assert.deepEqual(names('Mayo Clinic Staff'), ['{Mayo Clinic Staff}']);
+  assert.deepEqual(names('The Writing Lab & The OWL at Purdue'), ['{The Writing Lab & The OWL at Purdue}']);
+  assert.deepEqual(names('Johnson and Johnson Institute'), ['{Johnson and Johnson Institute}']);
+});
+
+test('author strings: things that are not authors', () => {
+  for (const junk of ['admin', 'harvardgazette', 'https://facebook.com/someone', '@handle', 'Reviewed by Davia Sills', 'Edited by Jo Roe', 'Staff']) {
+    assert.deepEqual(parseAuthors(junk), [], junk);
+  }
+});
+
+const page = (head, body) => `<html><head>${head}</head><body>${body}</body></html>`;
+const ld = o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
+
+test('byline and date are read from the visible page when there is no data', () => {
+  const r = extractFromHtml(page('<title>WordPress 7.2 Beta 4 – WordPress News</title><meta property="og:site_name" content="WordPress News">',
+    '<h1>WordPress 7.2 Beta 4</h1><p>November 3, 2026 By David Baumwald in Development</p>'), 'https://wordpress.org/news/2026/11/beta/');
+  assert.deepEqual(r.fields.authors.map(a => a.family), ['Baumwald']);
+  assert.deepEqual(r.fields.date, { year: 2026, month: 11, day: 3 });
+  assert.equal(r.fields.title, 'WordPress 7.2 Beta 4');
+});
+
+test('names directly under the headline', () => {
+  const r = extractFromHtml(page('<title>Post</title>', '<h1>Post title here</h1><div>Marina Elmore and Nicole Justus</div><div>5 minute read</div>'), 'https://blog.example.com/post-title-here');
+  assert.deepEqual(r.fields.authors.map(a => a.family), ['Elmore', 'Justus']);
+});
+
+test('a date shown under the headline is found', () => {
+  const r = extractFromHtml(page('<title>Depression</title>', '<h1>Depression</h1><div>11 September 2026</div><p>Key facts</p>'), 'https://who.example/news/fact-sheets/depression');
+  assert.deepEqual(r.fields.date, { year: 2026, month: 9, day: 11 });
+});
+
+test('a summary stored as "headline" does not replace the real title', () => {
+  const r = extractFromHtml(page(`<title>The Self-Concept: A Construct | PT</title><meta property="og:title" content="The Self-Concept: A Construct">${ld({ '@type': 'Article', headline: 'Every child develops an artifact shaped by many social influences around them.' })}`,
+    '<h1>The Self-Concept: A Construct</h1>'), 'https://pt.example/blog/x/self-concept');
+  assert.equal(r.fields.title, 'The Self-Concept: A Construct');
+});
+
+test('a site logo in an h1 is not the title', () => {
+  const r = extractFromHtml(page('<title>Normal Americans punished MAGA</title><meta property="og:title" content="Normal Americans punished MAGA"><meta property="og:site_name" content="Noahpinion">',
+    '<h1>Noahpinion</h1><article><h1>Normal Americans punished MAGA</h1></article>'), 'https://www.noahpinion.blog/p/normal');
+  assert.equal(r.fields.title, 'Normal Americans punished MAGA');
+});
+
+test('JSON-LD for a related story is not used for this page', () => {
+  const r = extractFromHtml(page(`<title>Real story</title>${ld({ '@type': 'NewsArticle', headline: 'Another story altogether', url: 'https://n.example/other', author: { '@type': 'Person', name: 'Wrong Person' }, datePublished: '2001-01-01' })}${ld({ '@type': 'NewsArticle', headline: 'Real story', url: 'https://n.example/real', author: { '@type': 'Person', name: 'Right Person' }, datePublished: '2026-02-03' })}`,
+    '<h1>Real story</h1>'), 'https://n.example/real');
+  assert.deepEqual(r.fields.authors.map(a => a.family), ['Person']);
+  assert.equal(r.fields.authors[0].given, 'Right');
+  assert.deepEqual(r.fields.date, { year: 2026, month: 2, day: 3 });
+});
+
+test('byline beats the publisher named as author; comments and sidebars are ignored', () => {
+  const r = extractFromHtml(page(`<title>Story</title><meta property="og:site_name" content="Daily Planet">${ld({ '@type': 'NewsArticle', headline: 'Story', author: { '@type': 'Organization', name: 'Daily Planet' } })}`,
+    '<aside class="sidebar"><a class="author" href="/author/x">Wrong Person</a></aside><h1>Story</h1><div class="byline">By <a href="/author/lois">Lois Lane</a></div><div class="comments"><span class="author">Some Commenter</span></div>'), 'https://planet.example/news/story');
+  assert.deepEqual(r.fields.authors.map(a => a.family), ['Lane']);
+});
+
+test('disagreement between hidden data and byline is flagged', () => {
+  const r = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'NewsArticle', headline: 'Story', author: { '@type': 'Person', name: 'Web Editor' } })}`,
+    '<h1>Story</h1><div class="byline">By Lois Lane</div>'), 'https://planet.example/news/story');
+  assert.match(r.warnings.join(' '), /Check the author.*Web Editor.*Lois Lane/);
+});
+
+test('a UTC timestamp one day off uses the date printed on the page', () => {
+  const r = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'NewsArticle', headline: 'Story', datePublished: '2026-03-06T02:00:00Z' })}`,
+    '<h1>Story</h1><p>March 5, 2026</p>'), 'https://planet.example/news/story');
+  assert.deepEqual(r.fields.date, { year: 2026, month: 3, day: 5 });
+  assert.equal(r.warnings.length, 0);
+});
+
+test('a real date disagreement is flagged, not silently chosen', () => {
+  const r = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'NewsArticle', headline: 'Story', datePublished: '2020-03-06' })}`,
+    '<h1>Story</h1><p>June 1, 2026</p>'), 'https://planet.example/news/story');
+  assert.match(r.warnings.join(' '), /Check the date/);
+});
+
+test('date in the URL is the last resort; future dates are rejected', () => {
+  const a = extractFromHtml(page('<title>Story</title>', '<h1>Story</h1>'), 'https://planet.example/2024/02/16/story/');
+  assert.deepEqual(a.fields.date, { year: 2024, month: 2, day: 16 });
+  const b = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'Article', headline: 'Story', datePublished: '2999-01-01' })}`, '<h1>Story</h1>'), 'https://planet.example/news/story');
+  assert.equal(b.fields.date, undefined);
+});
+
+test('the printed headline wins over differently worded hidden data', () => {
+  const r = extractFromHtml(page(`<title>Could SpaceX spark a launch crisis?</title><meta property="og:title" content="Could SpaceX spark a launch crisis?">${ld({ '@type': 'Article', headline: 'Could SpaceX spark a launch crisis?' })}`,
+    '<h1>As SpaceX sunsets Falcon 9, a launch crunch is looming</h1>'), 'https://sa.example/article/spacex');
+  assert.equal(r.fields.title, 'As SpaceX sunsets Falcon 9, a launch crunch is looming');
+});
+
+test('hidden data keeps punctuation a styled headline lost', () => {
+  const r = extractFromHtml(page('<title>x</title><meta property="og:title" content="Insomnia - Symptoms and causes">', '<h1>Insomnia <span>Symptoms and causes</span></h1>'), 'https://m.example/conditions/insomnia/symptoms');
+  assert.equal(r.fields.title, 'Insomnia - Symptoms and causes');
+});
+
+test('people linked inside the article are not the author', () => {
+  const body = '<h1>A proof</h1><p>September 18, 2026</p>' + '<p>text</p>'.repeat(80) + '<p>As <a href="/people/john-conway">John Conway</a> showed.</p>';
+  const r = extractFromHtml(page('<title>A proof</title>', body), 'https://blog.example/a-proof/');
+  assert.deepEqual(r.fields.authors, []);
+});
+
+test('interface text is not a person', () => {
+  const r = extractFromHtml(page('<title>About flu</title>', '<h1>About flu</h1><div class="byline">For Everyone</div>'), 'https://cdc.example/flu/about/index.html');
+  assert.deepEqual(r.fields.authors, []);
+});
+
+test('"by" mid-sentence is not a byline', () => {
+  const r = extractFromHtml(page('<title>A proof</title>', '<h1>A proof</h1><p>I obtained a proof of this conjecture posed by John Conway 50 years ago.</p>'), 'https://blog.example/a-proof/');
+  assert.deepEqual(r.fields.authors, []);
+  const v = extractFromHtml(page('<title>A game</title>', '<h1>A game</h1><p>The next game is set for May.</p><p>by Jay Peters</p>'), 'https://n.example/games/a-game');
+  assert.deepEqual(v.fields.authors.map(a => a.family), ['Peters']);
+});
+
+test('home pages are flagged', () => {
+  const r = extractFromHtml(page('<title>Example</title>', '<h1>Example</h1>'), 'https://planet.example/');
+  assert.match(r.warnings.join(' '), /home or section page/);
+});
+
+test('RfW MLA web source uses the update date; news keeps publication date; APA keeps posting date', () => {
+  const base = { authors: [], title: 'Page', container: 'Site', date: { year: 2020, month: 1, day: 2 }, updated: { year: 2024, month: 5, day: 6 }, url: 'https://x.org/p', accessed: today };
+  assert.match(md({ ...base, type: 'webpage' }, 'mla8'), /6 May 2024, x\.org\/p\.$/);
+  assert.match(md({ ...base, type: 'blog' }, 'mla8'), /6 May 2024/);
+  assert.match(md({ ...base, type: 'article' }, 'mla8'), /2 Jan\. 2020/);
+  assert.match(md({ ...base, type: 'webpage' }, 'apa6'), /\(2020, January 2\)/);
 });
 
 function toText(segs) { return segs.map(s => s.text).join(''); }

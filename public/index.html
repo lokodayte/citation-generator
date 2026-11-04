@@ -59,6 +59,13 @@
   .help { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .help.bad { color: var(--err); }
   .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .button-help { font-size: 14px; }
+  .button-help summary { cursor: pointer; }
+  .button-help p, .button-help ol { margin: 10px 0 0; }
+  .button-help ol { padding-left: 20px; }
+  .button-help li { margin-bottom: 8px; }
+  .bookmarklet { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; cursor: grab; }
+  kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   [hidden] { display: none !important; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding-top: 24px; } }
 </style>
@@ -82,6 +89,16 @@
       <button type="submit" class="primary" id="go">Generate</button>
     </div>
   </form>
+
+  <details class="card button-help" id="button-help">
+    <summary>Site blocked or details missing? Use the <strong>Cite this page</strong> button</summary>
+    <p>Some sites (the New York Times, for example) refuse requests from this app. This button reads the article from your own browser instead, so it works on anything you can open, and it also sees bylines that only appear once a page has loaded.</p>
+    <ol>
+      <li>Show your bookmarks bar (Chrome: <kbd>⌘</kbd><kbd>⇧</kbd><kbd>B</kbd>), then drag this button onto it: <a class="bookmarklet" id="bookmarklet" href="#">Cite this page</a></li>
+      <li>Open the article you want to cite and click the bookmark. This site opens with the citation filled in.</li>
+    </ol>
+    <p class="help">Only the page’s details and the start of its text are sent here, to read the citation from. Nothing is saved.</p>
+  </details>
 
   <div class="banner err" id="error" role="alert" hidden></div>
 
@@ -107,6 +124,11 @@
           <label for="f-date">Published <span class="src" data-src="date"></span></label>
           <input type="text" id="f-date" name="date" placeholder="YYYY-MM-DD, YYYY-MM or YYYY">
           <div class="help" id="date-help"></div>
+        </div>
+        <div class="field" data-show="mla8:webpage,blog">
+          <label for="f-updated">Last updated <span class="src" data-src="updated"></span></label>
+          <input type="text" id="f-updated" name="updated" placeholder="YYYY-MM-DD">
+          <div class="help" id="updated-help"></div>
         </div>
         <div class="field full">
           <label for="f-authors">Authors <span class="src" data-src="authors"></span></label>
@@ -144,7 +166,7 @@
           <input type="text" id="f-doi" name="doi" placeholder="10.xxxx/…">
         </div>
         <div class="field full">
-          <label for="f-url">URL <span class="src" data-src="url"></span></label>
+          <label for="f-url"><span>URL <a id="open-page" target="_blank" rel="noopener noreferrer" hidden>open the page to compare ↗</a></span> <span class="src" data-src="url"></span></label>
           <input type="text" id="f-url" name="url">
         </div>
         <div class="field full" data-show="apa7:wiki">

@@ -337,6 +337,10 @@ class Builder {
  *       includeAccessed (MLA 9), includeRetrieved (APA 6 web pages and blogs) }
  * Returns an array of {text, italic?} segments.
  */
+export function mlaDateUsed(d, edition) {
+  return edition === 8 && d.updated && (d.type === 'webpage' || d.type === 'blog') ? d.updated : d.date;
+}
+
 export function formatMLA(d, edition = 9) {
   const book = edition === 8;
   const b = new Builder();
@@ -368,7 +372,10 @@ export function formatMLA(d, edition = 9) {
   if (publisher && publisherTypes.includes(d.type) && !sameEntity(publisher, d.container)) {
     els.push([{ text: publisher }]);
   }
-  if (d.date) els.push([{ text: mlaDate(d.date) }]);
+  // Rules for Writers (56b "Dates", item 36): a web source takes its most recent
+  // update date; newspapers, magazines and journals keep the publication date.
+  const when = mlaDateUsed(d, edition);
+  if (when) els.push([{ text: mlaDate(when) }]);
   if (d.pages) els.push([{ text: mlaPages(d.pages) }]);
   // DOI: "doi:10.1086/668300" in Rules for Writers (items 12–13); MLA 9 uses
   // https://doi.org/. URLs drop the protocol in both.
@@ -385,7 +392,7 @@ export function formatMLA(d, edition = 9) {
   }
   // Access date: Rules for Writers adds it only when the source has no date
   // (56b "Dates"); for MLA 9 it is optional, so the user chooses.
-  const accessed = book ? !d.date : d.includeAccessed;
+  const accessed = book ? !when : d.includeAccessed;
   if (accessed && d.accessed) b.t(` Accessed ${mlaDate(d.accessed)}.`);
   return tidy(b.segs);
 }
@@ -486,6 +493,14 @@ export function formatCitation(d, style) {
 }
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Rich text for the clipboard: one works-cited paragraph, written the way Google
+// Docs writes its own clipboard HTML (in Docs' format, 2.4 is double spacing).
+// Double-spaced, 12-point serif, 0.5-inch hanging indent (Rules for Writers 57a, 62a).
+export function toClipboardHTML(segs) {
+  const run = s => `<span style="font-size:12pt;font-family:'Times New Roman',serif;color:#000000;background-color:transparent;font-weight:400;font-style:${s.italic ? 'italic' : 'normal'};font-variant:normal;text-decoration:none;vertical-align:baseline;white-space:pre-wrap;">${esc(s.text)}</span>`;
+  return `<p dir="ltr" style="line-height:2.4;margin-left:36pt;text-indent:-36pt;margin-top:0pt;margin-bottom:0pt;">${segs.map(run).join('')}</p>`;
+}
 export const toHTML = segs => segs.map(s => (s.italic ? `<i>${esc(s.text)}</i>` : esc(s.text))).join('');
 export const toText = segs => segs.map(s => s.text).join('');
 export const toMarkdown = segs => segs.map(s => (s.italic ? `*${s.text}*` : s.text)).join('');
@@ -513,6 +528,7 @@ export function styleNotes(d, style) {
       ? 'No publication date found, so it’s left out and your access date is added at the end (Rules for Writers 56b).'
       : 'No publication date found, so it’s left out. MLA recommends keeping the access date in that case.');
     if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the entry starts with the title.');
+    if (edition === 8 && d.updated && (d.type === 'webpage' || d.type === 'blog')) notes.push(`The page was updated after it was first posted, so the update date is used (Rules for Writers 56b). The posted date is ${mlaDate(d.date) || 'unknown'}. Clear “Last updated” below if the update date isn’t shown on the page.`);
     if (edition === 8 && d.type === 'article') notes.push('If the newspaper’s city isn’t in its name, add it in brackets after the title, e.g. Plain Dealer [Cleveland] (Rules for Writers 56b, item 15).');
   }
   if (!d.container) notes.push(`No ${d.type === 'journal' ? 'journal' : 'website/periodical'} name found — left out.`);

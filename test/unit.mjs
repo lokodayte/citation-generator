@@ -359,6 +359,16 @@ test('"by" mid-sentence is not a byline', () => {
   assert.deepEqual(v.fields.authors.map(a => a.family), ['Peters']);
 });
 
+test('a byline stops at the date or job title printed after it', () => {
+  const read = text => extractFromHtml(page('<title>Story</title>', `<h1>Story</h1><p>${text}</p>`), 'https://n.example/news/story').fields.authors.map(a => [a.family, a.given].join(', '));
+  assert.deepEqual(read('By Jane Doe March 5, 2026'), ['Doe, Jane']);
+  assert.deepEqual(read('By Steve Henson Staff Writer Follow Nov. 4, 2026'), ['Henson, Steve']);
+  assert.deepEqual(read('By Heather Digby Parton Columnist Published November 4, 2026'), ['Parton, Heather Digby']);
+  assert.deepEqual(read('By Adam Davidson Published Nov 4, 2026'), ['Davidson, Adam']);
+  assert.deepEqual(read('By Jane Doe and John Smith Updated May 2, 2026'), ['Doe, Jane', 'Smith, John']);
+  assert.deepEqual(read('By Mary May'), ['May, Mary']);
+});
+
 test('home pages are flagged', () => {
   const r = extractFromHtml(page('<title>Example</title>', '<h1>Example</h1>'), 'https://planet.example/');
   assert.match(r.warnings.join(' '), /home or section page/);

@@ -407,6 +407,15 @@ test('a website login in the hidden data is not an author', () => {
   assert.deepEqual(kept.fields.authors, [{ name: 'Reuters' }]);
 });
 
+test('only an update date printed on the page counts', () => {
+  const hidden = extractFromHtml(page(`<title>Einstein</title>${ld({ '@type': 'Article', headline: 'Einstein', datePublished: '1998-07-20', dateModified: '2026-11-04' })}`, '<h1>Einstein</h1><p>Text.</p>'), 'https://b.example/biography/einstein');
+  assert.deepEqual(hidden.fields.date, { year: 1998, month: 7, day: 20 });
+  assert.equal(hidden.fields.updated, undefined);
+  const shown = extractFromHtml(page(`<title>World War II</title>${ld({ '@type': 'Article', headline: 'World War II', datePublished: '2009-10-29', dateModified: '2026-07-15' })}`, '<h1>World War II</h1><p>Published: October 29, 2009</p><p>Last Updated: July 15, 2026</p>'), 'https://h.example/articles/ww2');
+  assert.deepEqual(shown.fields.date, { year: 2009, month: 10, day: 29 });
+  assert.deepEqual(shown.fields.updated, { year: 2026, month: 7, day: 15 });
+});
+
 test('home pages are flagged', () => {
   const r = extractFromHtml(page('<title>Example</title>', '<h1>Example</h1>'), 'https://planet.example/');
   assert.match(r.warnings.join(' '), /home or section page/);

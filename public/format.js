@@ -553,7 +553,7 @@ export function styleNotes(d, style) {
       ? 'No publication date found, so it’s left out and your access date is added at the end (Rules for Writers 56b).'
       : 'No publication date found, so it’s left out. MLA recommends keeping the access date in that case.');
     if (!hasAuthors && d.type !== 'wiki') notes.push('No author found, so the entry starts with the title.');
-    if (edition === 8 && d.updated && (d.type === 'webpage' || d.type === 'blog')) notes.push(`The page was updated after it was first posted, so the update date is used (Rules for Writers 56b). The posted date is ${mlaDate(d.date) || 'unknown'}. Clear “Last updated” below if the update date isn’t shown on the page.`);
+    if (edition === 8 && d.updated && (d.type === 'webpage' || d.type === 'blog')) notes.push(`The page was updated after it was first posted, so the update date is used (Rules for Writers 56b). The posted date is ${mlaDate(d.date) || 'unknown'}.`);
     if (edition === 8 && d.type === 'article') notes.push('If the newspaper’s city isn’t in its name, add it in brackets after the title, e.g. Plain Dealer [Cleveland] (Rules for Writers 56b, item 15).');
   }
   if (!d.container) notes.push(`No ${d.type === 'journal' ? 'journal' : 'website/periodical'} name found — left out.`);

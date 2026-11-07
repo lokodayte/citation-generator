@@ -348,6 +348,18 @@ class Builder {
  *       includeAccessed (MLA 9), includeRetrieved (APA 6 web pages and blogs) }
  * Returns an array of {text, italic?} segments.
  */
+// A quotation or short-work title inside an article title takes single quotation
+// marks: “A ‘True Likeness’: The Renaissance City Portrait.” (MLA; RfW 56b).
+export function mlaInnerQuotes(title) {
+  return title.replace(/“([^“”]*)”/g, '‘$1’').replace(/"([^"]*)"/g, '‘$1’');
+}
+
+// The period goes inside both sets of quotation marks: “On ‘Love.’ ”
+function mlaTitlePeriod(title) {
+  if (/‘[^‘’]*’$/.test(title) && !/[.?!]’$/.test(title)) return title.slice(0, -1) + '.’';
+  return withPeriod(title);
+}
+
 export function mlaDateUsed(d, edition) {
   return edition === 8 && d.updated && (d.type === 'webpage' || d.type === 'blog') ? d.updated : d.date;
 }
@@ -368,7 +380,7 @@ export function formatMLA(d, edition = 9) {
 
   const a = mlaAuthors(authors);
   if (a) b.t(withPeriod(a) + ' ');
-  if (d.title) b.t(`“${withPeriod(d.title)}” `);
+  if (d.title) b.t(`“${mlaTitlePeriod(mlaInnerQuotes(d.title))}” `);
 
   // Container elements, separated by commas, ending with a period.
   const els = [];

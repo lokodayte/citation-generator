@@ -66,6 +66,29 @@
   .button-help li { margin-bottom: 8px; }
   .bookmarklet { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; cursor: grab; }
   kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--muted); }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  .preview { white-space: pre-wrap; overflow-wrap: anywhere; font-family: "Times New Roman", Times, serif; font-size: 17px; line-height: 1.7;
+    background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; max-height: 360px; overflow: auto; }
+  mark { color: inherit; background: none; cursor: pointer; border-radius: 2px; }
+  mark.sev-error { background: color-mix(in srgb, var(--err) 18%, transparent); border-bottom: 2px solid var(--err); }
+  mark.sev-check { background: color-mix(in srgb, var(--warn) 16%, transparent); border-bottom: 2px dotted var(--warn); }
+  mark:empty::after { content: "\00a0"; }
+  ol.findings { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+  .finding { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .finding.flash { outline: 2px solid var(--accent); }
+  .finding h3 { font-size: 15px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+  .chip { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-radius: 999px; padding: 1px 8px; font-weight: 600; }
+  .chip.sev-error { background: var(--err-bg); color: var(--err); }
+  .chip.sev-check { background: var(--warn-bg); color: var(--warn); }
+  .finding .excerpt { font-family: "Times New Roman", Times, serif; font-size: 16px; margin: 4px 0; overflow-wrap: anywhere; }
+  .finding .excerpt b { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: inherit; border-radius: 2px; }
+  .finding .why { font-size: 14px; color: var(--muted); margin: 6px 0 8px; }
+  .finding .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .finding .actions button { padding: 5px 12px; font-size: 14px; }
+  #rule-list { font-size: 14px; padding-left: 20px; }
+  #rule-list li { margin-bottom: 6px; }
   [hidden] { display: none !important; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding-top: 24px; } }
 </style>
@@ -73,7 +96,14 @@
 <body>
 <main>
   <h1>Citation Generator</h1>
-  <p class="sub">Paste a link, get an MLA or APA citation. MLA 8 and APA 6 follow <cite>Rules for Writers</cite>, 9th ed. (Hacker &amp; Sommers).</p>
+  <p class="sub">Paste a link, get an MLA or APA citation, and check the punctuation in your writing. MLA 8 and APA 6 follow <cite>Rules for Writers</cite>, 9th ed. (Hacker &amp; Sommers).</p>
+
+  <nav class="tabs" role="tablist" aria-label="Tools">
+    <button type="button" role="tab" id="tab-cite" data-view="cite" aria-selected="true">Cite a source</button>
+    <button type="button" role="tab" id="tab-check" data-view="check" aria-selected="false">Check punctuation</button>
+  </nav>
+
+  <div id="view-cite" role="tabpanel" aria-labelledby="tab-cite">
 
   <form class="card lookup" id="lookup">
     <input type="text" inputmode="url" id="url" placeholder="https://… or a DOI like 10.1038/s41586-020-2649-2" required autocomplete="off" aria-label="URL to cite">
@@ -187,7 +217,36 @@
       </div>
     </form>
   </section>
+  </div>
+
+  <section id="view-check" role="tabpanel" aria-labelledby="tab-check" hidden>
+    <div class="card">
+      <label for="check-text" class="label">Paste your writing</label>
+      <textarea id="check-text" rows="10" placeholder="Paste a paragraph or your whole essay. Problems are marked as you type."></textarea>
+      <div class="row" style="margin-top:10px">
+        <span id="check-summary" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <button type="button" id="fix-errors" class="primary" hidden>Fix all errors</button>
+        <button type="button" id="copy-text">Copy text</button>
+      </div>
+      <p class="help">Your text stays in your browser; it isn’t sent anywhere.</p>
+    </div>
+
+    <div class="card" id="check-results" hidden>
+      <div class="label">Your text, with problems marked</div>
+      <div id="check-preview" class="preview"></div>
+      <ol id="check-list" class="findings"></ol>
+    </div>
+
+    <details class="card button-help">
+      <summary>What this checks</summary>
+      <p>These are punctuation rules for academic writing in American English that MLA, APA, the <cite>Chicago Manual of Style</cite>, and the Purdue OWL agree on. <strong>Error</strong> means the text breaks the rule. <strong>Check</strong> means it is probably wrong, but it depends on what you mean, so you decide.</p>
+      <ul id="rule-list"></ul>
+      <p class="help">No automatic checker catches everything. Most comma splices and missing commas depend on the meaning of the sentence, so read your work over as well.</p>
+    </details>
+  </section>
 </main>
 <script type="module" src="app.js"></script>
+<script type="module" src="checker.js"></script>
 </body>
 </html>

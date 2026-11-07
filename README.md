@@ -38,10 +38,36 @@ Want your own copy? [![Deploy with Vercel](https://vercel.com/button)](https://v
 
 Because anyone can use the hosted version, the server refuses to fetch localhost or private-network addresses. It checks DNS results and every redirect. Successful lookups are cached for an hour.
 
+## Punctuation checker
+
+The **Check punctuation** tab marks punctuation problems in pasted writing. It runs entirely in the
+browser (`public/punctuation.js`), so the text is never sent anywhere.
+
+It checks only rules that MLA, APA, the *Chicago Manual of Style*, and the Purdue OWL agree on for
+academic writing in American English:
+
+- spacing: no space before `, ; : . ! ?`, a space after them; doubled marks (`,,` `,.`)
+- quotation marks: periods and commas inside, colons and semicolons outside, no extra period or comma
+  after a quoted `?` or `!`, single marks for a quotation inside a quotation, unmatched marks
+- apostrophes: contractions (`dont` → `don't`), `its`/`it's`, no apostrophe in `yours`, `hers`, `ours`,
+  `theirs`, or in plural decades (`1990s`)
+- commas: dates (`July 4, 1776, …`), city and state (`Dallas, Texas, is…`), after introductory
+  transitions, the serial comma, before a quotation after "said", none after "that"
+- colons and semicolons: no colon after "such as" or "including", or between a verb and its object; a colon
+  (not a semicolon) after "the following"; a semicolon or period (not a comma) before "however"
+  between two sentences
+- dashes typed as spaced hyphens, spaces around dashes, abbreviations (`etc.`, `e.g.`, `i.e.`), paragraphs
+  without end punctuation
+
+**Error** means the text breaks the rule; **Check** means it depends on meaning, so the writer decides.
+Fixes are shown before they are applied. Before release, the rules were run on about 28,000 words of
+professionally edited articles, and every rule that raised false alarms there was narrowed until it
+didn't. The checker can't find every mistake (most comma splices need a human reader).
+
 ## Tests
 
 ```bash
-npm test          # offline unit tests for the formatting rules
+npm test          # offline tests: citation rules and the punctuation checker
 npm run samples   # fetches real pages and prints MLA 8 + APA 6 output (add --all for MLA 9 / APA 7)
 node test/samples.mjs https://example.com/some-article   # try your own URLs
 ```
@@ -51,6 +77,7 @@ node test/samples.mjs https://example.com/some-article   # try your own URLs
 ```
 public/index.html, app.js   single-page UI (editable form, live preview, copy)
 public/format.js            MLA 8 / APA 6 / MLA 9 / APA 7 formatting, shared by the browser and Node
+public/punctuation.js       punctuation rules (browser only); public/checker.js is its page
 lib/extract.js              fetches the page, extracts metadata, CrossRef lookup
 local-server.js             local server (not used on Vercel): serves public/ and GET /api/extract?url=...
 api/extract.js              the same endpoint as a Vercel serverless function

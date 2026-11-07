@@ -416,6 +416,14 @@ test('only an update date printed on the page counts', () => {
   assert.deepEqual(shown.fields.updated, { year: 2026, month: 7, day: 15 });
 });
 
+test('quoted words inside an MLA title take single quotation marks (RfW 56b)', () => {
+  const d = { ...web, title: 'A "True Likeness": The Renaissance City Portrait', date: { year: 2012 } };
+  assert.match(md(d, 'mla8'), /^“A ‘True Likeness’: The Renaissance City Portrait\.” \*/);
+  assert.match(md({ ...d, title: 'On “Love”' }, 'mla8'), /^“On ‘Love\.’” \*/);
+  assert.match(md({ ...d, title: 'The Students’' }, 'mla8'), /^“The Students’\.” \*/); // an apostrophe, not a quotation
+  assert.match(md(d, 'apa6'), /A "True Likeness": The Renaissance/); // APA titles have no outer quotation marks
+});
+
 test('home pages are flagged', () => {
   const r = extractFromHtml(page('<title>Example</title>', '<h1>Example</h1>'), 'https://planet.example/');
   assert.match(r.warnings.join(' '), /home or section page/);

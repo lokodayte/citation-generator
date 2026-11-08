@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node local-server.js",
-    "test": "node test/unit.mjs && node test/punctuation.mjs",
+    "test": "node test/unit.mjs && node test/punctuation.mjs && node test/proofread.mjs",
     "samples": "node test/samples.mjs"
   },
   "dependencies": {

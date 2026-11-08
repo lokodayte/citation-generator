@@ -13,6 +13,9 @@ const TYPES = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.aff': 'text/plain; charset=utf-8',
+  '.dic': 'text/plain; charset=utf-8',
 };
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {

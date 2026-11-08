@@ -317,6 +317,20 @@ test('a UTC timestamp one day off uses the date printed on the page', () => {
   assert.equal(r.warnings.length, 0);
 });
 
+test('a title ending that matches the address is the site name, not the JSON-LD publisher', () => {
+  const r = extractFromHtml(page(`<title>Citation - Wikipedia</title>${ld({ '@type': 'Article', name: 'Citation', publisher: { '@type': 'Organization', name: 'Wikimedia Foundation, Inc.' } })}`,
+    '<h1>Citation</h1><p>A citation is a reference to a source.</p>'), 'https://en.wikipedia.org/wiki/Citation');
+  assert.equal(r.fields.container, 'Wikipedia');
+  assert.equal(r.fields.publisher, 'Wikimedia Foundation, Inc.');
+});
+
+test('dates in a list of news or event links are not the page’s date', () => {
+  const r = extractFromHtml(page('<title>About</title>', '<h1>About Python</h1><p>Python is a programming language.</p>' +
+    '<ul><li><time datetime="2026-11-05T14:05:46+00:00">2026-11-05</time> <a href="/a">News one</a></li>' +
+    '<li><time datetime="2026-11-04T13:59:48+00:00">2026-11-04</time> <a href="/b">News two</a></li></ul>'), 'https://www.python.example/about/');
+  assert.ok(!r.fields.date, JSON.stringify(r.fields.date));
+});
+
 test('a real date disagreement is flagged, not silently chosen', () => {
   const r = extractFromHtml(page(`<title>Story</title>${ld({ '@type': 'NewsArticle', headline: 'Story', datePublished: '2020-03-06' })}`,
     '<h1>Story</h1><p>June 1, 2026</p>'), 'https://planet.example/news/story');

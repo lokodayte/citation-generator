@@ -78,7 +78,7 @@
   ol.findings { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
   .finding { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
   .finding.flash { outline: 2px solid var(--accent); }
-  .finding h3 { font-size: 15px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+  .finding h3 { font-size: 15px; margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
   .chip { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-radius: 999px; padding: 1px 8px; font-weight: 600; }
   .chip.sev-error { background: var(--err-bg); color: var(--err); }
   .chip.sev-check { background: var(--warn-bg); color: var(--warn); }
@@ -89,6 +89,23 @@
   .finding .actions button { padding: 5px 12px; font-size: 14px; }
   #rule-list { font-size: 14px; padding-left: 20px; }
   #rule-list li { margin-bottom: 6px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .stats:empty { display: none; }
+  .tools { margin-top: 10px; }
+  .tools select { width: auto; padding: 8px 10px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .filter { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
+  .filter b { font-weight: 600; margin-left: 2px; }
+  .filter[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
+  .cat { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .finding .source { font-style: italic; }
+  .finding .actions .linkish { font-size: 13px; padding: 5px 4px; color: var(--muted); }
+  .preview .sent { cursor: pointer; border-radius: 3px; }
+  .preview .sent.reading { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+  #proof-rules { font-size: 14px; padding-left: 20px; }
+  #proof-rules li, .checklist li { margin-bottom: 6px; }
+  .checklist { font-size: 14px; padding-left: 20px; }
+  #proof-off:empty, #proof-spell-note:empty { display: none; }
   [hidden] { display: none !important; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding-top: 24px; } }
 </style>
@@ -96,10 +113,11 @@
 <body>
 <main>
   <h1>Citation Generator</h1>
-  <p class="sub">Paste a link, get an MLA or APA citation, and check the punctuation in your writing. MLA 8 and APA 6 follow <cite>Rules for Writers</cite>, 9th ed. (Hacker &amp; Sommers).</p>
+  <p class="sub">Paste a link to get an MLA or APA citation, or paste your writing to proofread it. MLA 8 and APA 6 follow <cite>Rules for Writers</cite>, 9th ed. (Hacker &amp; Sommers).</p>
 
   <nav class="tabs" role="tablist" aria-label="Tools">
     <button type="button" role="tab" id="tab-cite" data-view="cite" aria-selected="true">Cite a source</button>
+    <button type="button" role="tab" id="tab-proof" data-view="proof" aria-selected="false">Proofread</button>
     <button type="button" role="tab" id="tab-check" data-view="check" aria-selected="false">Check punctuation</button>
   </nav>
 
@@ -219,6 +237,60 @@
   </section>
   </div>
 
+  <section id="view-proof" role="tabpanel" aria-labelledby="tab-proof" hidden>
+    <div class="card">
+      <label for="proof-text" class="label">Paste your writing</label>
+      <textarea id="proof-text" rows="12" spellcheck="false" placeholder="Paste a paragraph or your whole essay. Spelling, grammar, word choice, punctuation, clarity, and formal tone are checked as you type."></textarea>
+      <div class="stats" id="proof-stats" aria-live="polite"></div>
+      <div class="row" style="margin-top:10px">
+        <span id="proof-summary" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <button type="button" id="proof-fix" class="primary" hidden>Fix all errors</button>
+        <button type="button" id="proof-copy">Copy text</button>
+      </div>
+      <div class="row tools">
+        <button type="button" id="proof-read" aria-pressed="false">▶ Read aloud</button>
+        <select id="proof-rate" aria-label="Reading speed">
+          <option value="0.8">Slow</option>
+          <option value="1" selected>Normal</option>
+          <option value="1.2">Fast</option>
+        </select>
+        <button type="button" id="proof-lt">Deep grammar check</button>
+        <span id="proof-lt-status" class="help" aria-live="polite"></span>
+      </div>
+      <p class="help" id="proof-spell-note"></p>
+      <p class="help">Your text is checked in your browser and isn’t sent anywhere. The one exception is <strong>Deep grammar check</strong>: it sends the text to <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a>, a separate company (<a href="https://languagetool.org/legal/privacy" target="_blank" rel="noopener">their privacy policy</a>), and only when you click it.</p>
+    </div>
+
+    <div class="card" id="proof-results" hidden>
+      <div class="filters" id="proof-filters" aria-label="Show or hide categories"></div>
+      <div class="label">Your text, with problems marked <span class="help">(click a mark to jump to it)</span></div>
+      <div id="proof-preview" class="preview"></div>
+      <ol id="proof-list" class="findings"></ol>
+      <p class="help" id="proof-off"></p>
+    </div>
+
+    <details class="card button-help">
+      <summary>What this checks</summary>
+      <p><strong>Error</strong> means the text breaks a rule of standard written English, and there is usually a one-click fix. <strong>Check</strong> means it is probably worth changing, but it depends on what you mean or on your assignment, so you decide. Text inside quotation marks is left alone (you must quote sources exactly), except for possible misspellings and repeated words.</p>
+      <ul id="proof-rules"></ul>
+      <p>Spelling uses an American English dictionary (Hunspell and SCOWL word lists). Names and technical terms may show as possible misspellings: choose <strong>Add to dictionary</strong> and they won’t be flagged again in this browser.</p>
+      <p class="help">No automatic checker catches every mistake, especially ones that depend on meaning. <strong>Deep grammar check</strong> uses LanguageTool to find more (for example “He go to school”), and its suggestions are always marked as checks for you to decide.</p>
+    </details>
+
+    <details class="card button-help">
+      <summary>Proofread it yourself, too</summary>
+      <ul class="checklist">
+        <li><strong>Read it aloud</strong>, or use the Read aloud button and follow along. You will hear missing words, repeated words, and sentences that run on.</li>
+        <li><strong>Take a break first.</strong> After some time away, you read what is on the page, not what you meant to write.</li>
+        <li><strong>Look for one kind of error at a time</strong>, starting with the ones you know you make.</li>
+        <li><strong>Read backward, sentence by sentence</strong>, to look at each one on its own.</li>
+        <li><strong>Check names, numbers, dates, and quotations</strong> against your sources; no checker can.</li>
+        <li><strong>Match every in-text citation to an entry in your Works Cited or References list</strong>, and the other way round.</li>
+      </ul>
+    </details>
+  </section>
+
   <section id="view-check" role="tabpanel" aria-labelledby="tab-check" hidden>
     <div class="card">
       <label for="check-text" class="label">Paste your writing</label>
@@ -248,5 +320,7 @@
 </main>
 <script type="module" src="app.js"></script>
 <script type="module" src="checker.js"></script>
+<script type="module" src="proofreader.js"></script>
+<script type="module" src="tabs.js"></script>
 </body>
 </html>

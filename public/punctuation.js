@@ -51,14 +51,14 @@ export const RULES = {
 /* ------------------------------------------------------------------ helpers */
 
 // URLs, email addresses, and domain names follow their own rules: ignore them.
-function protectedRanges(text) {
+export function protectedRanges(text) {
   const ranges = [];
   const re = /\b(?:https?:\/\/|ftp:\/\/|www\.)[^\s<>"”]+|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|edu|gov|io|co|us|uk|info|ca|au|de|fr|jp|ai)\b(?:\/[^\s<>"”]*)?|\bdoi:\S+/gi;
   for (const m of text.matchAll(re)) ranges.push([m.index, m.index + m[0].length]);
   return ranges;
 }
 
-function caseLike(source, replacement) {
+export function caseLike(source, replacement) {
   if (source[0] === source[0].toUpperCase() && source[0] !== source[0].toLowerCase()) {
     return replacement[0].toUpperCase() + replacement.slice(1);
   }

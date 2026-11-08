@@ -1,26 +1,10 @@
-// The "Check punctuation" tab, and switching between the two tabs.
+// The "Check punctuation" tab.
 import { checkPunctuation, applyFixes, RULES } from './punctuation.js';
 
 const $ = sel => document.querySelector(sel);
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/* ------------------------------------------------------------------- tabs */
-
-function show(view) {
-  for (const btn of document.querySelectorAll('.tabs [data-view]')) {
-    const on = btn.dataset.view === view;
-    btn.setAttribute('aria-selected', String(on));
-    $(`#view-${btn.dataset.view}`).hidden = !on;
-  }
-  if (view === 'check') {
-    if (location.hash !== '#check') history.replaceState(null, '', '#check');
-    $('#check-text').focus();
-  } else if (location.hash === '#check') {
-    history.replaceState(null, '', location.pathname);
-  }
-}
-for (const btn of document.querySelectorAll('.tabs [data-view]')) btn.addEventListener('click', () => show(btn.dataset.view));
-if (location.hash === '#check') show('check');
+document.addEventListener('tabshown', e => { if (e.detail === 'check') $('#check-text').focus(); });
 
 $('#rule-list').innerHTML = Object.values(RULES)
   .map(r => `<li><strong>${esc(r.title)}</strong> <span class="chip sev-${r.severity}">${r.severity}</span><br>${esc(r.why)}</li>`).join('');

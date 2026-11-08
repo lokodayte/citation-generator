@@ -64,10 +64,58 @@ Fixes are shown before they are applied. Before release, the rules were run on a
 professionally edited articles, and every rule that raised false alarms there was narrowed until it
 didn't. The checker can't find every mistake (most comma splices need a human reader).
 
+## Proofreader
+
+The **Proofread** tab (`/#proofread`) checks pasted writing as you type, in the browser
+(`public/proofread.js`, word lists in `public/proofread-data.js`). Findings are grouped into
+categories you can show or hide:
+
+- **Spelling**: an American English Hunspell dictionary (`public/vendor/en_US.*`, SCOWL size 60, run
+  with [nspell](https://github.com/wooorm/nspell)) plus the SCOWL size-70 word list, so fewer correct
+  words are flagged. About 300 frequent misspellings (`recieve`, `alot`, `eachother`) and 60 wrong
+  irregular verb forms (`buyed` → `bought`) get a one-click fix; other unknown words get suggestions, as
+  checks, because names and new words are not in any dictionary. British spellings are pointed out
+  with the American form. Names (capitalized words in mid-sentence), acronyms, and accented words
+  are skipped, and **Add to dictionary** remembers words in your browser.
+- **Grammar**: `a`/`an` by sound (a university, an hour), `could of`, repeated words, lowercase
+  `i`, sentence capitals, days and months, wrong past participles (`have went`), `I seen`, clear
+  subject–verb agreement errors (`he don't`, `they was`), `between you and I`, possible fragments,
+  sentences that begin with a numeral.
+- **Word choice**: `their`/`there`/`they're`, `your`/`you're`, `to`/`too`, `then`/`than`,
+  `affect`/`effect`, `lose`/`loose`, `who's`/`whose`, `everyday`/`every day`, nonstandard words
+  (`irregardless`), `supposed to`, `very unique`, `less`/`fewer`, `the reason is because`, and others
+  from college handbooks' usage glossaries.
+- **Punctuation**: everything in the Check punctuation tab, plus `its`/`it's`, `wont`/`won't`, and
+  extra spaces (MLA and APA use one space after a sentence).
+- **Clarity**: wordy phrases (`due to the fact that` → `because`), redundancies (`end result`),
+  passive voice with "by", sentences over 40 words, clichés.
+- **Formal tone**: contractions, informal words (`gonna`, `kids`, `a lot of`), texting abbreviations,
+  addressing the reader as "you", gendered terms (`mankind`, `policeman`).
+
+Text inside quotation marks is left alone (quotations must stay exact), except for possible
+misspellings and repeated words. **Fix all errors** applies only definite fixes and repeats until
+none are left; suggestions are applied one at a time. Any check can be turned off.
+
+Also on the page: word, sentence, and paragraph counts; reading and speaking time (238 and 183 words
+a minute, the averages in Brysbaert's 2019 meta-analysis); Flesch–Kincaid grade level for 100+ words;
+**Read aloud**, which speaks the text sentence by sentence with the browser's speech voices and
+highlights each sentence; and a short self-proofreading checklist.
+
+**Deep grammar check** is optional: only when clicked, it sends the text from the browser to
+[LanguageTool](https://languagetool.org)'s free public API, which finds grammar errors that fixed
+rules can't (`He go to school`). Its findings are always shown as checks and labeled. The free API
+allows 20 KB per request and 75 KB a minute per network; LanguageTool's handling of the text is
+described in [its privacy policy](https://languagetool.org/legal/privacy).
+
+The rules were run on about 57,000 words of professionally edited articles and 17,000 words of
+Wikipedia, and every false alarm found at the error level was fixed. The dictionary files and nspell
+are open source; their licenses are in `public/vendor/LICENSES.txt`. The proofreader still can't
+catch every mistake, especially ones that depend on meaning.
+
 ## Tests
 
 ```bash
-npm test          # offline tests: citation rules and the punctuation checker
+npm test          # offline tests: citation rules, the punctuation checker, the proofreader
 npm run samples   # fetches real pages and prints MLA 8 + APA 6 output (add --all for MLA 9 / APA 7)
 node test/samples.mjs https://example.com/some-article   # try your own URLs
 ```

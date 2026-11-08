@@ -1,5 +1,5 @@
 // The "Proofread" tab.
-import { proofread, textStats, splitSentences, CATEGORIES, PROOF_RULES } from './proofread.js';
+import { proofread, textStats, splitSentences, citationsStart, CATEGORIES, PROOF_RULES } from './proofread.js';
 import { applyFixes, RULES as PUNCT_RULES } from './punctuation.js';
 import { languageToolCheck, shiftFindings, LanguageToolError } from './languagetool.js';
 
@@ -13,7 +13,7 @@ const store = {
 const box = $('#proof-text');
 const MAX_LISTED = 300;
 
-let speller = null, extra = new Set(), loading = null;
+let speller = null, extra = new Set(), common = new Map(), loading = null;
 const dictionary = new Set(store.get('proofread.dictionary', []));
 const hiddenCats = new Set(store.get('proofread.hidden', []));
 const offRules = new Set(store.get('proofread.off', []));
@@ -28,12 +28,15 @@ function loadDictionary() {
   loading ??= (async () => {
     $('#proof-summary').textContent = 'Loading the dictionary…';
     try {
-      const [aff, dic, words, mod] = await Promise.all([
+      const [aff, dic, words, frequent, mod] = await Promise.all([
         fetch('vendor/en_US.aff').then(r => r.text()), fetch('vendor/en_US.dic').then(r => r.text()),
-        fetch('vendor/en_US-70.txt').then(r => r.text()), import('./vendor/nspell.js'),
+        fetch('vendor/en_US-70.txt').then(r => r.text()), fetch('vendor/en_common.txt').then(r => r.text()),
+        import('./vendor/nspell.js'),
       ]);
-      speller = mod.default(aff, dic);
       extra = new Set(words.split('\n').filter(Boolean));
+      let tier = -1;
+      for (const line of frequent.split('\n')) { if (line.startsWith('#')) tier++; else if (line) common.set(line, tier); }
+      speller = mod.default(aff, dic);
     } catch {
       $('#proof-spell-note').textContent = 'The spelling dictionary couldn’t be loaded, so only common misspellings are checked. Reload the page to try again.';
     }
@@ -72,7 +75,7 @@ function run() {
   if (ltText !== null && text !== ltText) { ltFindings = shiftFindings(ltFindings, ltText, text); ltText = text; }
   if (text !== lastText) { stopReading(); lastText = text; try { sessionStorage.setItem('proofread.text', text); } catch { /* ignore */ } }
 
-  let local = proofread(text, { speller, extra, dictionary });
+  let local = proofread(text, { speller, extra, common, dictionary });
   // LanguageTool adds what the local rules don't already cover. For a word the
   // dictionary doesn't know, its suggestions use context ("buyed" → "bought"), so they replace ours.
   const ltSpell = ltFindings.filter(f => f.category === 'spelling');
@@ -85,6 +88,9 @@ function run() {
 
   renderStats(text);
   renderSummary(text);
+  const cut = citationsStart(text);
+  $('#proof-cited-note').textContent = cut >= 0
+    ? `Your “${text.slice(cut).trim().split('\n')[0].trim()}” list isn’t checked: its entries follow their own format. To make or check an entry, use the Cite a source tab.` : '';
   renderFilters();
   renderOff();
   $('#proof-results').hidden = !text.trim();
@@ -93,7 +99,10 @@ function run() {
   renderList(text);
 }
 
-function renderStats(text) {
+function renderStats(full) {
+  // Word counts leave out the Works Cited list, as instructors' word limits usually do.
+  const cut = citationsStart(full);
+  const text = cut >= 0 ? full.slice(0, cut) : full;
   const s = textStats(text);
   if (!s.words) { $('#proof-stats').innerHTML = ''; return; }
   const items = [
@@ -101,6 +110,7 @@ function renderStats(text) {
     s.sentences ? `${s.avgSentence.toFixed(1)} words per sentence (longest ${s.longest})` : '',
     `${minutes(s.readingMinutes)} to read, ${minutes(s.speakingMinutes)} to say aloud`,
     s.grade == null ? '' : `reading level ≈ grade ${Math.max(1, Math.round(s.grade))} (Flesch–Kincaid)`,
+    cut >= 0 ? 'not counting the Works Cited list' : '',
   ].filter(Boolean);
   $('#proof-stats').innerHTML = items.map(i => `<span>${esc(i)}</span>`).join('');
 }
@@ -229,7 +239,7 @@ $('#proof-off').addEventListener('click', e => {
 $('#proof-fix').addEventListener('click', () => {
   let text = box.value;
   for (let pass = 0; pass < 5; pass++) {
-    const fixes = proofread(text, { speller, extra, dictionary })
+    const fixes = proofread(text, { speller, extra, common, dictionary })
       .filter(f => f.severity === 'error' && f.fix && !hiddenCats.has(f.category) && !offRules.has(f.rule) && !ignored.has(keyOf(f, text)));
     if (!fixes.length) break;
     text = applyFixes(text, fixes);

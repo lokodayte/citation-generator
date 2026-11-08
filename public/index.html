@@ -105,7 +105,7 @@
   #proof-rules { font-size: 14px; padding-left: 20px; }
   #proof-rules li, .checklist li { margin-bottom: 6px; }
   .checklist { font-size: 14px; padding-left: 20px; }
-  #proof-off:empty, #proof-spell-note:empty { display: none; }
+  #proof-off:empty, #proof-spell-note:empty, #proof-cited-note:empty { display: none; }
   [hidden] { display: none !important; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding-top: 24px; } }
 </style>
@@ -267,12 +267,14 @@
       <div class="label">Your text, with problems marked <span class="help">(click a mark to jump to it)</span></div>
       <div id="proof-preview" class="preview"></div>
       <ol id="proof-list" class="findings"></ol>
+      <p class="help" id="proof-cited-note"></p>
       <p class="help" id="proof-off"></p>
     </div>
 
     <details class="card button-help">
       <summary>What this checks</summary>
-      <p><strong>Error</strong> means the text breaks a rule of standard written English, and there is usually a one-click fix. <strong>Check</strong> means it is probably worth changing, but it depends on what you mean or on your assignment, so you decide. Text inside quotation marks is left alone (you must quote sources exactly), except for possible misspellings and repeated words.</p>
+      <p><strong>Error</strong> means the text breaks a rule of standard written English, and there is usually a one-click fix. <strong>Check</strong> means it is probably worth changing, but it depends on what you mean or on your assignment, so you decide. Text inside quotation marks is left alone (you must quote sources exactly), except for possible misspellings and repeated words. A Works Cited or References list at the end isn’t checked.</p>
+      <p>Every rule comes from a published authority: Merriam-Webster (the dictionary MLA and APA use) and the Britannica Dictionary for word usage and informal labels; the APA Style and MLA Style Center websites; and college writing guides (Purdue OWL, UNC Writing Center, Brandeis Writing Program, <cite>The Bedford Handbook</cite>). Words the dictionary accepts, such as “very unique,” “try and,” and “a lot of,” are not flagged.</p>
       <ul id="proof-rules"></ul>
       <p>Spelling uses an American English dictionary (Hunspell and SCOWL word lists). Names and technical terms may show as possible misspellings: choose <strong>Add to dictionary</strong> and they won’t be flagged again in this browser.</p>
       <p class="help">No automatic checker catches every mistake, especially ones that depend on meaning. <strong>Deep grammar check</strong> uses LanguageTool to find more (for example “He go to school”), and its suggestions are always marked as checks for you to decide.</p>

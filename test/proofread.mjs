@@ -10,7 +10,9 @@ import nspell from '../public/vendor/nspell.js';
 const dir = new URL('../public/vendor/', import.meta.url);
 const speller = nspell(fs.readFileSync(new URL('en_US.aff', dir), 'utf8'), fs.readFileSync(new URL('en_US.dic', dir), 'utf8'));
 const extra = new Set(fs.readFileSync(new URL('en_US-70.txt', dir), 'utf8').split('\n').filter(Boolean));
-const check = text => proofread(text, { speller, extra });
+const common = new Map();
+{ let tier = -1; for (const l of fs.readFileSync(new URL('en_common.txt', dir), 'utf8').split('\n')) { if (l.startsWith('#')) tier++; else if (l) common.set(l, tier); } }
+const check = text => proofread(text, { speller, extra, common });
 const rules = text => check(text).map(f => f.rule);
 const fixAll = text => applyFixes(text, check(text).filter(f => f.severity === 'error' && f.fix));
 
@@ -115,6 +117,35 @@ test('past participles', () => {
   fixedTo('They have went home. She had ran. It was took. We have already ate.', 'They have gone home. She had run. It was taken. We have already eaten.');
   lacks('We were broke and they had broken it.', 'participle');
 });
+test('past participles that Merriam-Webster accepts are not flagged', () => {
+  for (const t of ['They have drank the water.', 'The key was hid under the mat.', 'He has hid it.', 'They had shrunk.']) lacks(t, 'participle');
+});
+test('words Merriam-Webster treats as standard are not flagged', () => {
+  for (const t of ['It is a very unique chance.', 'Try and relax.', 'In my opinion, it works.', 'It was pretty good.', 'A lot of people came.']) {
+    assert.deepEqual(rules(t).filter(r => !['formal-contraction', 'second-person'].includes(r)), [], t);
+  }
+});
+test('repeated words that can be correct are only checks', () => {
+  for (const t of ['I gave her her book.', 'Come in in the morning.', 'What it is is a mistake.']) {
+    const f = check(t).find(x => x.rule === 'repeated-word');
+    assert.ok(!f || f.severity === 'check', t);
+  }
+  assert.equal(check('It is the the best.').find(x => x.rule === 'repeated-word').severity, 'error');
+});
+test('“to” before a word that can be a verb is not changed to “too”', () => {
+  for (const t of ['The plan is to close for a week.', 'The goal is to fast for a day.', 'They seem to long for home.']) lacks(t, 'to-too');
+});
+test('the Works Cited list is not checked', () => {
+  const t = 'My essay is good.\n\nWorks Cited\n\nSmith, John. “a Title” Publisher, 2020.\nteh book. Accessed 7 Nov. 2026.';
+  assert.deepEqual(check(t).map(f => f.rule), []);
+});
+test('suggestions put the most likely word first', () => {
+  for (const [bad, good] of [['beatiful', 'beautiful'], ['becuse', 'because'], ['probly', 'probably'], ['tommorrow', 'tomorrow'], ['realise', 'realize']]) {
+    const f = check(`It is ${bad}.`).find(x => x.category === 'spelling');
+    const first = f.fix ? f.fix[0].text : f.options[0].text;
+    assert.equal(first, good, bad);
+  }
+});
 test('“I seen” but not passives or perfects', () => {
   fixedTo('I seen it.', 'I saw it.');
   for (const t of ['Have you seen it?', 'Is it seen as a threat?', 'Were they seen there?', 'I have seen it.']) lacks(t, 'seen');
@@ -160,9 +191,9 @@ test('then/than, affect/effect, lose/loose are checks', () => {
 /* --------------------------------------------------------- clarity, tone */
 
 test('wordy phrases and redundancies are suggestions', () => {
-  const t = 'Due to the fact that it rained, the end result was that the majority of the students left in order to stay dry.';
+  const t = 'Due to the fact that it rained, the end result was that most students left in order to stay dry.';
   const f = check(t).filter(x => x.category === 'clarity');
-  assert.deepEqual(f.map(x => x.fix[0].text), ['Because', 'result', 'most of', 'to']);
+  assert.deepEqual(f.map(x => x.fix[0].text), ['Because', 'result', 'to']);
   assert.ok(f.every(x => x.severity === 'check'));
 });
 test('“It is important to note that” can be deleted with the next word capitalized', () => {
@@ -176,18 +207,41 @@ test('passive voice with “by”, but not “by far” or “by 2020”', () =>
 });
 test('long sentences', () => has(`${'word '.repeat(45)}end.`, 'long-sentence'));
 test('clichés, contractions, informal words, gendered terms', () => {
-  const t = 'At the end of the day, it’s gonna help kids and the policeman.';
-  for (const r of ['cliche', 'contraction', 'informal', 'gendered']) has(t, r);
+  const t = 'It is crystal clear that it’s gonna help kids and the policeman.';
+  for (const r of ['cliche', 'formal-contraction', 'informal', 'gendered']) has(t, r);
 });
-test('possessives are not contractions', () => lacks('John’s book and the dog’s bowl.', 'contraction'));
+test('possessives are not contractions', () => lacks('John’s book and the dog’s bowl.', 'formal-contraction'));
+test('turning off formal contractions is separate from the missing-apostrophe error', () => {
+  const r = rules('I dont know.');
+  assert.ok(r.includes('contraction') && !r.includes('formal-contraction'));
+});
 test('nothing in quotation marks is restyled', () => {
   const r = rules('The coach said, “You gotta try, it’s awesome.”');
-  for (const x of ['second-person', 'informal', 'contraction']) assert.ok(!r.includes(x), x);
+  for (const x of ['second-person', 'informal', 'formal-contraction']) assert.ok(!r.includes(x), x);
 });
 test('its/it’s and wont/won’t', () => {
   fixedTo('Its important to note that its true. Its going to rain, and it wont stop.', "It's important to note that it's true. It's going to rain, and it won't stop.");
   lacks('The school and its important mission. Its going rate.', 'its-is');
   lacks('He was up early, as was his wont. She was wont to sing.', 'wont');
+});
+test('there is + plural, me and…, cant, effects as a verb, comma splices, plural apostrophes', () => {
+  fixedTo('There is many reasons. There was two problems.', 'There are many reasons. There were two problems.');
+  has('Me and my friends spend hours online.', 'me-and');
+  fixedTo('We cant stop.', "We can't stop.");
+  has('This issue effects everyone.', 'affect-effect');
+  lacks('The effects the drug had were mild. Its side effects many people noticed.', 'affect-effect');
+  has('I went home, it was late.', 'comma-splice');
+  for (const t of ['When I got home, it was late.', 'The man, he said, was tall.', 'It is his conviction, he has said, that it works.', 'We tried, but it was not enough.']) lacks(t, 'comma-splice');
+  has('My parent’s were happy.', 'plural-apostrophe');
+  lacks('It’s here and that’s fine.', 'plural-apostrophe');
+  lacks('The school and its development. Jerusalem as its capital.', 'its-is');
+});
+test('names and set phrases from the audits are left alone', () => {
+  lacks('The band More Stuff and the duo Kid N’ Play performed.', 'informal');
+  lacks('He was born c. 1860 in Liberia.', 'number-start');
+  lacks('Whether or not it rains, we will go. (Whether or not it works, I will try.)', 'wordy');
+  has('We must decide whether or not to go.', 'wordy');
+  lacks('The group Sungu Sungu met.', 'repeated-word');
 });
 test('extra spaces', () => { fixedTo('Two  spaces.', 'Two spaces.'); has('One.  Two.', 'sentence-spacing'); });
 

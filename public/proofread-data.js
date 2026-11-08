@@ -135,101 +135,77 @@ export const BRITISH = {
   practising: 'practicing', jewellery: 'jewelry', kerb: 'curb', aeroplane: 'airplane', aeroplanes: 'airplanes',
 };
 
-// Wordy phrases and redundancies → shorter wording ("" = delete the phrase).
-// kind: 'w' wordy, 'r' redundant. Based on the "empty or inflated phrases" and
-// redundancy lists in college writing handbooks and the Purdue OWL.
+// Wordy phrases and redundancies → shorter wording ("" = delete the phrase; null = no
+// one-word replacement, the sentence needs rewording). kind: 'w' wordy, 'r' redundant.
+// Every entry comes from one of these college writing guides:
+//   Purdue OWL, "Avoid Common Pitfalls" and "Eliminating Words" (conciseness);
+//   UNC Writing Center, "Writing Concisely"; Brandeis University Writing Program,
+//   "Four Types of Unnecessary Words and Phrases"; Liberty University Writing Center,
+//   "Wordiness"; George Mason University Writing Center, "Revising Prose for Concision"
+//   (metadiscourse such as "it is important to note that").
 export const WORDY = [
+  // Purdue, UNC, Brandeis: phrases that mean "because"
   ['due to the fact that', 'because', 'w'], ['owing to the fact that', 'because', 'w'],
   ['because of the fact that', 'because', 'w'], ['in light of the fact that', 'because', 'w'],
-  ['by virtue of the fact that', 'because', 'w'], ['on account of the fact that', 'because', 'w'],
-  ['for the reason that', 'because', 'w'], ['in spite of the fact that', 'although', 'w'],
-  ['despite the fact that', 'although', 'w'], ['regardless of the fact that', 'although', 'w'],
-  ['in the event that', 'if', 'w'], ['until such time as', 'until', 'w'],
-  ['at this point in time', 'now', 'w'], ['at this moment in time', 'now', 'w'],
-  ['at the present time', 'now', 'w'], ['in order to', 'to', 'w'], ['in order for', 'for', 'w'],
-  ['for the purpose of', 'for', 'w'], ['has the ability to', 'can', 'w'], ['have the ability to', 'can', 'w'],
-  ['had the ability to', 'could', 'w'], ['a large number of', 'many', 'w'], ['a great number of', 'many', 'w'],
-  ['a small number of', 'a few', 'w'], ['a sufficient number of', 'enough', 'w'],
-  ['in the near future', 'soon', 'w'], ['at all times', 'always', 'w'], ['as a matter of fact', 'in fact', 'w'],
-  ['by means of', 'by', 'w'], ['along the lines of', 'like', 'w'], ['with the exception of', 'except for', 'w'],
-  ['in the vicinity of', 'near', 'w'], ['in close proximity to', 'near', 'w'], ['prior to', 'before', 'w'],
-  ['subsequent to', 'after', 'w'], ['in excess of', 'more than', 'w'],
-  ['on a daily basis', 'daily', 'w'], ['on a weekly basis', 'weekly', 'w'], ['on a monthly basis', 'monthly', 'w'],
-  ['on a yearly basis', 'yearly', 'w'], ['on an annual basis', 'annually', 'w'],
-  ['on a regular basis', 'regularly', 'w'], ['with regard to', 'about', 'w'],
-  ['it is important to note that', '', 'w'], ['it should be noted that', '', 'w'],
-  ['it is worth noting that', '', 'w'], ['it is interesting to note that', '', 'w'],
-  ["it's important to note that", '', 'w'], ["it's worth noting that", '', 'w'], ["it's interesting to note that", '', 'w'],
-  ['there is no doubt that', 'undoubtedly', 'w'], ['is indicative of', 'indicates', 'w'],
-  ['are indicative of', 'indicate', 'w'], ['was indicative of', 'indicated', 'w'],
-  ['make a decision', 'decide', 'w'], ['makes a decision', 'decides', 'w'], ['made a decision', 'decided', 'w'],
-  ['making a decision', 'deciding', 'w'], ['come to the conclusion', 'conclude', 'w'],
-  ['comes to the conclusion', 'concludes', 'w'], ['came to the conclusion', 'concluded', 'w'],
-  ['give consideration to', 'consider', 'w'], ['gave consideration to', 'considered', 'w'],
-  ['each and every', 'every', 'r'], ['first and foremost', 'first', 'r'], ['basic fundamentals', 'fundamentals', 'r'],
-  ['basic essentials', 'essentials', 'r'], ['past history', 'history', 'r'], ['end result', 'result', 'r'],
-  ['final outcome', 'outcome', 'r'], ['free gift', 'gift', 'r'], ['true facts', 'facts', 'r'],
-  ['close proximity', 'proximity', 'r'], ['advance planning', 'planning', 'r'], ['advance warning', 'warning', 'r'],
-  ['future plans', 'plans', 'r'], ['unexpected surprise', 'surprise', 'r'], ['personal opinion', 'opinion', 'r'],
-  ['consensus of opinion', 'consensus', 'r'], ['absolutely essential', 'essential', 'r'],
-  ['absolutely necessary', 'necessary', 'r'], ['few in number', 'few', 'r'], ['period of time', 'time', 'r'],
-  ...verbForms('completely eliminate', 'eliminate', ['s', 'd', 'ing:eliminating']),
-  ...verbForms('refer back', 'refer', ['s', 'red:referred', 'ring:referring']),
-  ...verbForms('revert back', 'revert', ['s', 'ed', 'ing']),
-  ...verbForms('return back', 'return', ['s', 'ed', 'ing']),
-  ...verbForms('reply back', 'reply', ['ies:replies', 'ied:replied', 'ing']),
-  ...verbForms('repeat again', 'repeat', ['s', 'ed', 'ing']),
-  ...verbForms('combine together', 'combine', ['s', 'd', 'ing:combining']),
-  ...verbForms('join together', 'join', ['s', 'ed', 'ing']),
-  ...verbForms('cooperate together', 'cooperate', ['s', 'd', 'ing:cooperating']),
-  ...verbForms('collaborate together', 'collaborate', ['s', 'd', 'ing:collaborating']),
-  ...verbForms('merge together', 'merge', ['s', 'd', 'ing:merging']),
+  ['considering the fact that', 'because', 'w'], ['given the fact that', 'because', 'w'],
+  ['for the reason that', 'because', 'w'], ['on the grounds that', 'because', 'w'], ['inasmuch as', 'because', 'w'],
+  // "if", "when"
+  ['in the event that', 'if', 'w'], ['in the event of', 'if', 'w'], ['in a situation in which', 'when', 'w'],
+  ['under circumstances in which', 'when', 'w'], ['on the occasion of', 'when', 'w'], ['at the time that', 'when', 'w'],
+  // time
+  ['at this point in time', 'now', 'w'], ['at that point in time', 'then', 'w'], ['at the present time', 'now', 'w'],
+  ['prior to', 'before', 'w'], ['subsequent to', 'after', 'w'],
+  // "can", "about", "more than", "by", "to"
+  ['has the ability to', 'can', 'w'], ['have the ability to', 'can', 'w'], ['has the capacity to', 'can', 'w'],
+  ['has the opportunity to', 'can', 'w'], ['is able to', 'can', 'w'], ['are able to', 'can', 'w'],
+  ['with regard to', 'about', 'w'], ['in regard to', 'about', 'w'], ['with reference to', 'about', 'w'],
+  ['in reference to', 'about', 'w'], ['as regards', 'about', 'w'], ['concerning the matter of', 'about', 'w'],
+  ['in excess of', 'more than', 'w'], ['by means of', 'by', 'w'], ['in order to', 'to', 'w'], ['in actual fact', 'actually', 'w'],
+  // need rewording rather than one replacement word
+  ['it is necessary that', null, 'w'], ['it is crucial that', null, 'w'], ['it is important that', null, 'w'],
+  ['there is a need for', null, 'w'], ['cannot be avoided', null, 'w'], ['it is possible that', null, 'w'],
+  ['there is a chance that', null, 'w'], ['the possibility exists for', null, 'w'], ['it could happen that', null, 'w'],
+  ['for the purpose of', null, 'w'], ['in the process of', null, 'w'],
+  // metadiscourse (GMU)
+  ['it is important to note that', '', 'w'], ["it's important to note that", '', 'w'], ['it should be noted that', '', 'w'],
+  // redundant pairs (Purdue, UNC)
+  ['completely finish', 'finish', 'r'], ['past memories', 'memories', 'r'], ['various differences', 'differences', 'r'],
+  ['basic fundamentals', 'fundamentals', 'r'], ['true facts', 'facts', 'r'], ['important essentials', 'essentials', 'r'],
+  ['future plans', 'plans', 'r'], ['terrible tragedy', 'tragedy', 'r'], ['end result', 'result', 'r'],
+  ['final outcome', 'outcome', 'r'], ['free gift', 'gift', 'r'], ['past history', 'history', 'r'],
+  ['unexpected surprise', 'surprise', 'r'], ['sudden crisis', 'crisis', 'r'], ['each and every', 'every', 'r'],
+  ['first and foremost', 'first', 'r'], ['full and complete', 'complete', 'r'], ['whole entire', 'entire', 'r'],
+  ['true and accurate', 'accurate', 'r'], ['always and forever', 'always', 'r'],
+  // redundant categories (Purdue)
+  ['large in size', 'large', 'r'], ['heavy in weight', 'heavy', 'r'],
+  ['round in shape', 'round', 'r'], ['period in time', 'period', 'r'], ['often times', 'often', 'r'],
+  ['at an early time', 'early', 'r'], ['honest in character', 'honest', 'r'],
+  ['unusual in nature', 'unusual', 'r'], ['extreme in degree', 'extreme', 'r'],
 ];
 
-// "refer back" + ["s", "red:referred"] → refers back/refers, referred back/referred …
-function verbForms(phrase, verb, endings) {
-  const [, rest] = phrase.split(/ (.*)/);
-  const out = [[phrase, verb, 'r']];
-  for (const e of endings) {
-    const [suffix, full] = e.split(':');
-    const form = full || (suffix === 'ies' ? verb.slice(0, -1) + 'ies' : suffix === 'ied' ? verb.slice(0, -1) + 'ied' : verb + suffix);
-    out.push([`${form} ${rest}`, form, 'r']);
-  }
-  return out;
-}
-
-// Clichés common in student essays.
+// Clichés named in college writing guides: Hacker and Sommers, The Bedford Handbook,
+// 9th ed., sec. 18e; Skidmore College Guide to Writing, "Clichés"; University of
+// Arkansas Business Communication Center, "Clichés".
 export const CLICHES = [
-  'in today’s society', 'in today’s world', 'since the dawn of time', 'since the beginning of time',
-  'since the dawn of mankind', 'last but not least', 'at the end of the day', 'think outside the box',
-  'few and far between', 'avoid like the plague', 'better late than never', 'only time will tell',
-  'in this day and age', 'easier said than done', 'a blessing in disguise', 'crystal clear',
-  'every cloud has a silver lining', 'a needle in a haystack', 'the tip of the iceberg',
-  'it goes without saying', 'needless to say', 'all walks of life', 'the best of both worlds',
-  'food for thought', 'in the nick of time', 'the calm before the storm', 'a double-edged sword',
-  'a level playing field', 'low-hanging fruit', 'at the drop of a hat', 'beat around the bush',
-  'bite the bullet', 'break the ice', 'the elephant in the room', 'hit the nail on the head',
-  'it is what it is', 'the last straw', 'let the cat out of the bag', 'a perfect storm',
-  'the ball is in your court', 'the writing on the wall', 'time heals all wounds',
-  'what goes around comes around', 'when all is said and done', 'busy as a bee', 'dead as a doornail',
-  'light as a feather', 'plain as day', 'quiet as a mouse', 'white as a sheet', 'as old as time',
-  'in the blink of an eye', 'par for the course', 'touch base', 'game changer', 'game-changer',
-  'the bottom line', 'go the extra mile', 'the whole nine yards', 'in a nutshell', 'at the speed of light', 'like a kid in a candy store',
+  'busy as a bee', 'crystal clear', 'cool as a cucumber', 'beat around the bush', 'blind as a bat',
+  'tried and true', 'spur of the moment', 'paved the way', 'in this day and age', 'nick of time',
+  'few and far between', 'hard as a rock', 'hit the nail on the head', 'moving experience', 'pride and joy',
+  'pretty as a picture', 'good things come to those who wait', 'all that glitters is not gold', 'every rose has its thorn',
 ];
 
-// Words that are fine in conversation but too informal for an academic paper.
-// [word, suggestions, auto-fix?]
+// Words that Merriam-Webster or the Britannica Dictionary label informal ("a lot of" and
+// "pretty" meaning "fairly" are not labeled, so they aren't here). [word, suggestions, auto-fix?]
 export const INFORMAL = [
   ['gonna', ['going to'], true], ['wanna', ['want to'], true], ['gotta', ['have to'], true],
   ['kinda', ['somewhat', 'kind of'], false], ['sorta', ['somewhat', 'sort of'], false],
   ['ain’t', ['is not', 'are not', 'am not'], false], ['ain\'t', ['is not', 'are not', 'am not'], false],
-  ['y’all', ['you'], false], ['y\'all', ['you'], false], ['cuz', ['because'], true], ['coz', ['because'], true],
+  ['y’all', ['you'], false], ['y\'all', ['you'], false], ['cuz', ['because'], true],
   ['anyways', ['anyway'], true], ['alright', ['all right'], true], ['off of', ['off'], true],
   ['kids', ['children'], true], ['kid', ['child'], true], ['guys', ['people'], false], ['stuff', [], false],
   ['awesome', ['impressive', 'excellent'], false], ['tons of', ['many', 'much'], false],
-  ['a bunch of', ['several', 'many'], false], ['lots of', ['many', 'much'], false], ['a lot of', ['many', 'much'], false],
+  ['a bunch of', ['several', 'many'], false], ['lots of', ['many', 'much'], false],
   ['pretty much', ['almost', 'mostly'], false], ['okay', ['acceptable', 'all right'], false],
-];
+]
 
 // Abbreviations of texting and online chat.
 // Matched in lowercase only ("FYI" in a memo heading is left alone).
